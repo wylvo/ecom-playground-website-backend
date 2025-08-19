@@ -4,9 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "rm -rf ./dist && tsc --project tsconfig.build.json && resolve-tspaths -p tsconfig.build.json -s ./src -o ./dist",
     "start": "npm run build && node ./dist/index.js",
-    "dev": "nodemon --exec npx tsx src/index.ts"
+    "dev": "nodemon --exec npx tsx src/index.ts",
+    "dev:tsx": "tsx watch src --env-file=.env"
   },
   "keywords": [],
   "author": "",
@@ -29,8 +30,10 @@
     "zod": "^4.0.17"
   },
   "devDependencies": {
+    "@tsconfig/node22": "^22.0.2",
     "@types/node": "^24.3.0",
     "nodemon": "^3.1.10",
+    "resolve-tspaths": "^0.8.23",
     "tsx": "^4.20.4",
     "typescript": "^5.9.2"
   }
