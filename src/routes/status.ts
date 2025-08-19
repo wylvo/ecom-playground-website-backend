@@ -2,8 +2,6 @@ import type { FastifyInstance } from "fastify"
 import type { ZodTypeProvider } from "fastify-type-provider-zod"
 import z from "zod"
 
-const { npm_package_version: version } = process.env
-
 export default async function status(fastify: FastifyInstance) {
   fastify.withTypeProvider<ZodTypeProvider>().route({
     method: "GET",
@@ -17,7 +15,7 @@ export default async function status(fastify: FastifyInstance) {
       },
     },
     handler: (req, res) => {
-      return { status: "ok", version: version as string }
+      return { status: "ok", version: "1.0.0" }
     },
   })
 }

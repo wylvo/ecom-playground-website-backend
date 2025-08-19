@@ -77,7 +77,7 @@ const envPlugin: FastifyPluginCallback = (fastify, _options, done) => {
       ALLOWED_ORIGINS: {
         type: "string",
         separator: ",",
-        default: "http://localhost:5173",
+        default: "*",
       },
     },
   }
