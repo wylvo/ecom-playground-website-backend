@@ -1,0 +1,51 @@
+import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose"
+import type { FastifyRequest, FastifyReply, FastifyPluginAsync } from "fastify"
+import fastifyPlugin from "fastify-plugin"
+
+// Extend Fastify types
+declare module "fastify" {
+  interface FastifyInstance {
+    verifyUser: (request: FastifyRequest, reply: FastifyReply) => Promise<void>
+  }
+  interface FastifyRequest {
+    user?: JWTPayload // from jose
+  }
+}
+
+const SUPABASE_JWT_KEYS = createRemoteJWKSet(
+  new URL(process.env.SUPABASE_JWK_REMOTE_ENDPOINT as string),
+)
+
+function verifySupabaseJWT(jwt: string) {
+  return jwtVerify<JWTPayload>(jwt, SUPABASE_JWT_KEYS, {
+    issuer: process.env.SUPABASE_JWT_ISSUER as string,
+  })
+}
+
+const authPlugin: FastifyPluginAsync = async (fastify) => {
+  fastify.decorate(
+    "verifyUser",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const authHeader = request.headers.authorization
+        if (!authHeader?.startsWith("Bearer ")) {
+          return reply.code(401).send({ error: "Missing or invalid token" })
+        }
+
+        const [, token] = authHeader.split(" ")
+
+        if (!token)
+          return reply.code(401).send({ error: "Missing or invalid token" })
+
+        const { payload } = await verifySupabaseJWT(token)
+
+        request.user = payload // { sub, email, is_anonymous, ... }
+      } catch (err) {
+        console.error(err)
+        return reply.code(401).send({ error: "Unauthorized" })
+      }
+    },
+  )
+}
+
+export default fastifyPlugin(authPlugin, { name: "auth" })
