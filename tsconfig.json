@@ -1,21 +1,24 @@
 {
-  "extends": "@tsconfig/node22/tsconfig.json",
   "compilerOptions": {
     "paths": {
       "@/*": ["./src/*"]
     },
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
+    "jsx": "react-jsx",
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
     "noImplicitAny": false,
-    "noStrictGenericChecks": false,
-
-    "jsx": "react-jsx",
-
-    "allowImportingTsExtensions": true,
-    "noEmit": true
+    "noStrictGenericChecks": false
   },
   "include": ["src", "tests"]
 }

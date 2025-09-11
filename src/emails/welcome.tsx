@@ -18,7 +18,7 @@ import {
   unsubscribeUrl,
   brandIconUrl,
   welcomeEmailPreview,
-} from "./config/config.ts"
+} from "./config/config"
 
 function Welcome({ unsubscribeToken }) {
   return (

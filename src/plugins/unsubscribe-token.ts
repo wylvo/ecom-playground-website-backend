@@ -1,7 +1,7 @@
 import fastifyPlugin from "fastify-plugin"
 import { SignJWT, jwtVerify } from "jose"
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify"
-import { UnsubscribeBodySchema } from "@/routes/newsletter/unsubscribe.ts"
+import { UnsubscribeBodySchema } from "@/routes/newsletter/unsubscribe"
 
 declare module "fastify" {
   interface FastifyInstance {

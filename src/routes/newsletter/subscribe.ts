@@ -5,7 +5,7 @@ import { CreateContactResponse, Resend, UpdateContactResponse } from "resend"
 import domains from "disposable-domains" with { type: "json" }
 import wildcards from "disposable-domains/wildcard.json" with { type: "json" }
 import type { ZodTypeProvider } from "fastify-type-provider-zod"
-import Welcome from "@/emails/welcome.tsx"
+import Welcome from "@/emails/welcome"
 
 const blockedDomains = new Set([...domains, ...wildcards])
 
