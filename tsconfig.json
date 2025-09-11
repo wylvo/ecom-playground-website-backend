@@ -10,7 +10,12 @@
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
     "noImplicitAny": false,
-    "noStrictGenericChecks": false
+    "noStrictGenericChecks": false,
+
+    "jsx": "react-jsx",
+
+    "allowImportingTsExtensions": true,
+    "noEmit": true
   },
   "include": ["src", "tests"]
 }

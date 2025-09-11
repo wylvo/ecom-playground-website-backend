@@ -16,12 +16,23 @@ declare module "fastify" {
       SUPABASE_JWT_ISSUER: string
       SUPABASE_JWK_REMOTE_ENDPOINT: string
       SUPABASE_DATABASE_URL: string
+      SUPABASE_DATABASE_MIGRATIONS_URL: string
       RESEND_API_KEY: string
       RESEND_AUDIENCE_ID: string
       CLOUDFLARE_TURNSTILE_SITE_KEY: string
       CLOUDFLARE_TURNSTILE_SECRET_KEY: string
       CLOUDFLARE_TURNSTILE_SITE_VERIFY_ENDPOINT: string
-      ALLOWED_ORIGINS: string[]
+      ALLOW_ORIGINS: string[]
+      ALLOW_HEADERS: string[]
+      ALLOW_METHODS: string[]
+      ALLOW_CREDENTIALS: boolean
+      EMAIL_BRAND_DOMAIN: string
+      EMAIL_UNSUBSCRIBE_URL: string
+      EMAIL_UNSUBSCRIBE_JWT_SECRET_KEY: string
+      EMAIL_UNSUBSCRIBE_JWT_EXPIRATION_TIME: string
+      WELCOME_EMAIL_FROM: string
+      WELCOME_EMAIL_SUBJECT: string
+      WELCOME_EMAIL_PREVIEW: string
     }
   }
 }
@@ -37,6 +48,10 @@ const envPlugin: FastifyPluginCallback = (fastify, _options, done) => {
       "CLOUDFLARE_TURNSTILE_SITE_KEY",
       "CLOUDFLARE_TURNSTILE_SECRET_KEY",
       "CLOUDFLARE_TURNSTILE_SITE_VERIFY_ENDPOINT",
+      "EMAIL_BRAND_DOMAIN",
+      "EMAIL_UNSUBSCRIBE_URL",
+      "EMAIL_UNSUBSCRIBE_JWT_SECRET_KEY",
+      "EMAIL_UNSUBSCRIBE_JWT_EXPIRATION_TIME",
     ],
     properties: {
       HOST: {
@@ -59,6 +74,9 @@ const envPlugin: FastifyPluginCallback = (fastify, _options, done) => {
       SUPABASE_DATABASE_URL: {
         type: "string",
       },
+      SUPABASE_DATABASE_MIGRATIONS_URL: {
+        type: "string",
+      },
       RESEND_API_KEY: {
         type: "string",
       },
@@ -74,10 +92,47 @@ const envPlugin: FastifyPluginCallback = (fastify, _options, done) => {
       CLOUDFLARE_TURNSTILE_SITE_VERIFY_ENDPOINT: {
         type: "string",
       },
-      ALLOWED_ORIGINS: {
+      ALLOW_ORIGINS: {
         type: "string",
         separator: ",",
         default: "*",
+      },
+      ALLOW_HEADERS: {
+        type: "string",
+        separator: ",",
+        default: "Content-Type,Authorization,Set-Cookie",
+      },
+      ALLOW_METHODS: {
+        type: "string",
+        separator: ",",
+        default: "GET,PATCH,PUT,DELETE,OPTIONS",
+      },
+      ALLOW_CREDENTIALS: {
+        type: "boolean",
+        default: true,
+      },
+      EMAIL_BRAND_DOMAIN: {
+        type: "string",
+      },
+      EMAIL_UNSUBSCRIBE_URL: {
+        type: "string",
+      },
+      EMAIL_UNSUBSCRIBE_JWT_SECRET_KEY: {
+        type: "string",
+      },
+      EMAIL_UNSUBSCRIBE_JWT_EXPIRATION_TIME: {
+        type: "string",
+      },
+      WELCOME_EMAIL_FROM: {
+        type: "string",
+      },
+      WELCOME_EMAIL_SUBJECT: {
+        type: "string",
+        default: "Welcome",
+      },
+      WELCOME_EMAIL_PREVIEW: {
+        type: "string",
+        default: "Welcome",
       },
     },
   }

@@ -1,27 +1,15 @@
 import { type FastifyInstance } from "fastify"
-import { Resend } from "resend"
+import z from "zod"
+import { CreateContactResponse, Resend, UpdateContactResponse } from "resend"
+
 import domains from "disposable-domains" with { type: "json" }
 import wildcards from "disposable-domains/wildcard.json" with { type: "json" }
-import z from "zod"
 import type { ZodTypeProvider } from "fastify-type-provider-zod"
+import Welcome from "@/emails/welcome.tsx"
 
-export const autoPrefix = "/newsletter"
-
-const turnstileSecretKey = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY
-const turnstileSiteVerify = process.env
-  .CLOUDFLARE_TURNSTILE_SITE_VERIFY_ENDPOINT as string
 const blockedDomains = new Set([...domains, ...wildcards])
 
 type SubscribeBody = z.infer<typeof subscribeBodySchema>
-
-type TurnstileResult = {
-  success: boolean
-  challenge_ts: string
-  hostname: string
-  "error-codes": Array<string>
-  action: string
-  cdata: string
-}
 
 const subscribeBodySchema = z.strictObject({
   email: z.email().refine((email) => {
@@ -40,6 +28,8 @@ const subscribeBodySchema = z.strictObject({
 export default async function subscribe(fastify: FastifyInstance) {
   const resend = new Resend(fastify.env.RESEND_API_KEY)
   const audienceId = fastify.env.RESEND_AUDIENCE_ID
+  const from = fastify.env.WELCOME_EMAIL_FROM
+  const subject = fastify.env.WELCOME_EMAIL_SUBJECT
 
   fastify.withTypeProvider<ZodTypeProvider>().route({
     method: "POST",
@@ -47,53 +37,31 @@ export default async function subscribe(fastify: FastifyInstance) {
     schema: {
       body: subscribeBodySchema,
     },
-
+    preHandler: [fastify.verifyTurnstile],
     handler: async (req, reply) => {
       const body = req.body as SubscribeBody
-      let contact
+      let contact: UpdateContactResponse | CreateContactResponse
 
       try {
-        // Cloudflare Turnstile
-        const response = await fetch(turnstileSiteVerify, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            secret: turnstileSecretKey,
-            response: body.token,
-          }),
-        })
-
-        if (!response.ok)
-          return reply.code(400).send({
-            message: "Unable to verify token. Please try again later",
-          })
-
-        const result = (await response.json()) as TurnstileResult
-
-        if (result.success === false)
-          return reply.code(401).send({
-            message: "Unauthorized",
-          })
-
-        // Resend
+        // Find the contact in the audience
         const existingContact = await resend.contacts.get({
           email: body.email,
           audienceId,
         })
 
-        if (existingContact.data)
+        if (existingContact.data) {
           if (existingContact.data.unsubscribed === false)
             return { success: true }
           else
+            // Mark existing contact as subscribed again
             contact = await resend.contacts.update({
-              email: existingContact.data?.email || body.email,
+              email: body.email,
               ...(body.firstName && { firstName: body.firstName }),
               unsubscribed: false,
               audienceId,
             })
-        else
+        } else {
+          // Create a new contact
           contact = await resend.contacts.create({
             email: body.email,
             firstName: body.firstName || "",
@@ -101,15 +69,35 @@ export default async function subscribe(fastify: FastifyInstance) {
             audienceId,
           })
 
+          // Send a welcome email with a link to unsubscribe
+          const unsubscribeToken = await fastify.createUnsubscribeToken(
+            body.email,
+          )
+
+          // TODO: Remove arbitrary wait time
+          fastify.log.info("Waiting 1 second to prevent rate-limit")
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+
+          await resend.emails.send({
+            from,
+            to: body.email,
+            subject,
+            react: Welcome({ unsubscribeToken }),
+          })
+        }
+
         if (contact.error)
-          return reply
-            .code(400)
-            .send({ message: "Unable to subscribe this email address" })
+          return reply.code(400).send({
+            success: false,
+            message: "Unable to subscribe this email address",
+          })
 
         return { success: true }
       } catch (err) {
         fastify.log.error(err)
-        return reply.code(500).send({ message: "Something went wrong" })
+        return reply
+          .code(500)
+          .send({ success: false, message: "Something went wrong" })
       }
     },
   })

@@ -18,7 +18,7 @@ const rateLimitPlugin: FastifyPluginAsync = async (fastify) => {
 
   fastify.setNotFoundHandler(
     {
-      preHandler: fastify.rateLimit(),
+      preHandler: [fastify.rateLimit()],
     },
     function (request, reply) {
       reply.code(404).send({
@@ -31,5 +31,5 @@ const rateLimitPlugin: FastifyPluginAsync = async (fastify) => {
 }
 
 export default fastifyPlugin(rateLimitPlugin, {
-  name: "rateLimit",
+  name: "rate-limit",
 })

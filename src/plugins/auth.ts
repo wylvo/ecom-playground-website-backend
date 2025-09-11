@@ -8,17 +8,17 @@ declare module "fastify" {
     verifyUser: (request: FastifyRequest, reply: FastifyReply) => Promise<void>
   }
   interface FastifyRequest {
-    user?: JWTPayload // from jose
+    user?: JWTPayload
   }
 }
 
 const SUPABASE_JWT_KEYS = createRemoteJWKSet(
-  new URL(process.env.SUPABASE_JWK_REMOTE_ENDPOINT as string),
+  new URL(process.env.SUPABASE_JWK_REMOTE_ENDPOINT!),
 )
 
 function verifySupabaseJWT(jwt: string) {
   return jwtVerify<JWTPayload>(jwt, SUPABASE_JWT_KEYS, {
-    issuer: process.env.SUPABASE_JWT_ISSUER as string,
+    issuer: process.env.SUPABASE_JWT_ISSUER,
   })
 }
 
