@@ -57,7 +57,7 @@ function Welcome({ unsubscribeToken }) {
                 <Link className="text-accent-foreground font-bold">
                   LOGIK15
                 </Link>{" "}
-                lors de votre premier l'achat et{" "}
+                lors de votre premier achat et{" "}
                 <Link className="text-accent-foreground font-bold">
                   obtenez 15% de rabais
                 </Link>{" "}
