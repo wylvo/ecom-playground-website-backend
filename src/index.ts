@@ -28,10 +28,6 @@ await fastify.register(autoLoad, {
   dir: join(__dirname, "routes"),
 })
 
-// fastify.get("/", { preHandler: fastify.verifyUser }, async (req, reply) => {
-//   return { user: req.user || null }
-// })
-
 /**
  * Run the server!
  */

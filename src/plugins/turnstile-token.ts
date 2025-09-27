@@ -24,9 +24,7 @@ const turnstilePlugin: FastifyPluginAsync = async (fastify) => {
   const secret = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY
   const verifyUrl = process.env.CLOUDFLARE_TURNSTILE_SITE_VERIFY_ENDPOINT
 
-  if (!secret || !verifyUrl) {
-    throw new Error("Missing Turnstile env vars")
-  }
+  if (!secret || !verifyUrl) throw new Error("Missing Turnstile env vars")
 
   fastify.decorate(
     "verifyTurnstile",

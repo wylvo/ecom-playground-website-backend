@@ -41,7 +41,7 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
 
         request.user = payload // { sub, email, is_anonymous, ... }
       } catch (err) {
-        console.error(err)
+        fastify.log.error(err)
         return reply.code(401).send({ error: "Unauthorized" })
       }
     },

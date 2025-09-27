@@ -20,6 +20,10 @@ declare module "fastify" {
 const unsubscribePlugin: FastifyPluginAsync = async (fastify) => {
   const secretKey = fastify.env.EMAIL_UNSUBSCRIBE_JWT_SECRET_KEY
   const expirationTime = fastify.env.EMAIL_UNSUBSCRIBE_JWT_EXPIRATION_TIME
+
+  if (!secretKey || !expirationTime)
+    throw new Error("Missing email unsubscribe env vars")
+
   const secret = new TextEncoder().encode(secretKey)
 
   fastify.decorate("createUnsubscribeToken", async (email: string) => {
