@@ -1,4 +1,4 @@
-import { customers } from "@/db/schema"
+import { customers, orderProducts, orders } from "@/db/schema"
 import { eq } from "drizzle-orm"
 import { FastifyInstance } from "fastify"
 import { ZodTypeProvider } from "fastify-type-provider-zod"
@@ -37,6 +37,7 @@ const checkoutBodySchema = z.strictObject({
     }
     return phoneNumber.format("E.164")
   }),
+
   accepts_marketing: z.boolean(),
 
   shipping_full_name: requiredString(2),
@@ -44,10 +45,11 @@ const checkoutBodySchema = z.strictObject({
   shipping_address_line_1: requiredString(),
   shipping_address_line_2: optionalString(),
   shipping_city: requiredString(),
-  shipping_region: requiredString(),
-  shipping_region_code: optionalString(2),
+  shipping_region_name: requiredString(),
+  shipping_region_code: requiredString(2, 2),
   shipping_zip: requiredString(1, 6),
-  shipping_country: requiredString(),
+  shipping_country_name: requiredString(),
+  shipping_country_code: requiredString(2, 2),
 
   billing_address_matches_shipping_address: z.boolean(),
 
@@ -56,14 +58,17 @@ const checkoutBodySchema = z.strictObject({
   billing_address_line_1: requiredString(),
   billing_address_line_2: optionalString(),
   billing_city: requiredString(),
-  billing_region: requiredString(),
-  billing_region_code: optionalString(2),
+  billing_region_name: requiredString(),
+  billing_region_code: requiredString(2, 2),
   billing_zip: requiredString(1, 6),
-  billing_country: requiredString(),
+  billing_country_name: requiredString(),
+  billing_country_code: requiredString(2, 2),
 
   shipping_method_options: z.enum(["delivery", "pick_up"]),
 
   promotion_code: optionalString(),
+
+  locale: z.enum(["fr-CA", "en-CA"]),
 
   token: z.string(), // turnstile
 })
@@ -82,25 +87,34 @@ export default async function checkout(fastify: FastifyInstance) {
       fastify.verifyCheckoutPromotion,
       fastify.verifyCheckoutCart,
       // fastify.verifyCheckoutShippingAddress,
+      fastify.verifyCheckoutTaxRates,
       fastify.verifyCheckoutCustomer,
       fastify.verifyCheckoutStripeCustomer,
     ],
     handler: async (request, reply) => {
       try {
         const body = request.body as CheckoutBodySchema
+        const isTest = fastify.env.NODE_ENV === "development" ? true : false
+        const currencyCode = "CAD"
 
-        // For stripe
+        // For Stripe
         const { sub: authUserId, is_anonymous: isAnonymous } = request.user
         const shouldCreateStripeCustomer = request.shouldCreateStripeCustomer
         let stripeCustomer: Stripe.Response<Stripe.Customer>
 
-        // For subtotal, order products
+        // For Stripe and orders
+        const customer = request.customer
+
+        // For subtotal price, shipping total and order products
         const cartItems = request.cartItems
 
-        // For discount subtotal
+        // For discount total
         const promotion = request.promotion
 
-        await fastify.db.transaction(async (tx) => {
+        // For tax total
+        const taxRates = request.taxRates
+
+        const result = await fastify.db.transaction(async (tx) => {
           // Check if we have to create a stripe customer
           if (shouldCreateStripeCustomer) {
             stripeCustomer = await fastify.stripe.customers.create({
@@ -112,11 +126,11 @@ export default async function checkout(fastify: FastifyInstance) {
             })
 
             // Persist stripe customer id if user is not anonymous
-            if (!isAnonymous) {
+            if (!isAnonymous && customer) {
               await tx
                 .update(customers)
                 .set({ stripeCustomerId: stripeCustomer.id })
-                .where(eq(customers.authUserId, authUserId))
+                .where(eq(customers.authUserId, customer.authUserId))
             }
           }
 
@@ -125,34 +139,188 @@ export default async function checkout(fastify: FastifyInstance) {
               ? stripeCustomer.id
               : request.stripeCustomerId
 
-          // Compute subtotal
-          let subtotal = 0
+          console.log("\n")
+          console.log("stripeCustomerId:", stripeCustomerId)
+          console.log("\n")
+
+          // Compute subtotal price
+          let subtotalPrice = 0
           for (const item of cartItems) {
             const unitPrice =
               item.productVariant.discountPrice ?? item.productVariant.price
-            subtotal += unitPrice * item.quantity
+            subtotalPrice += unitPrice * item.quantity
           }
 
-          // TODO: Compute discount total
+          // Compute discount total
           let discountTotal = 0
-          let promotion = null
+          if (promotion) {
+            if (promotion.type === "percentage")
+              discountTotal = Math.floor(
+                subtotalPrice * (promotion.value / 100),
+              )
+            else if (promotion.type === "fixed_amount")
+              discountTotal = promotion.value
+          }
 
-          // TODO: Compute tax total
+          // Compute tax total
+          let taxTotal = 0
+          const regionTaxRate: any = taxRates?.find(
+            (taxRate) =>
+              taxRate.region?.code &&
+              taxRate.region.code === body.shipping_region_code &&
+              taxRate.country?.name === body.shipping_country_name,
+          )?.rate
+          const countryTaxRate: any = taxRates?.find(
+            (taxRate) =>
+              !taxRate.region?.code &&
+              taxRate.country?.name === body.shipping_country_name,
+          )?.rate
 
-          // TODO: Compute shipping total (will be 0 to begin with)
+          const countryTaxTotal = subtotalPrice * ((countryTaxRate ?? 0) / 100)
+          const regionTaxTotal = subtotalPrice * ((regionTaxRate ?? 0) / 100)
 
-          // TODO: Compute total price (subtotal + discount + tax + shipping)
+          taxTotal = Number((countryTaxTotal + regionTaxTotal).toFixed(0))
 
-          // TODO: insert order
+          // Compute shipping total
+          const shippingTotal = 0
 
-          // TODO: insert order products
+          // Compute total price
+          const totalPrice = Number(
+            (subtotalPrice - discountTotal + taxTotal + shippingTotal).toFixed(
+              0,
+            ),
+          )
 
-          // TODO: create Stripe checkout session
+          // Insert order
+          const [order] = await tx
+            .insert(orders)
+            .values({
+              ...(customer && { customerId: customer.id }),
+              authUserId,
+              status: "pending",
+              financialStatus: "pending",
+              fulfillmentStatus: "unfulfilled",
 
-          // TODO: save session id
+              // TODO: idempotencyKey
+
+              email: body.email,
+              phoneNumber: body.phone_number,
+              acceptsMarketing: body.accepts_marketing,
+
+              shippingFullName: body.shipping_full_name,
+              shippingCompany: body.shipping_company,
+              shippingAddressLine1: body.shipping_address_line_1,
+              shippingAddressLine2: body.shipping_address_line_2,
+              shippingCity: body.shipping_city,
+              shippingRegionName: body.shipping_region_name,
+              shippingRegionCode: body.shipping_region_code,
+              shippingZip: body.shipping_zip,
+              shippingCountryName: body.shipping_country_name,
+              shippingCountryCode: body.shipping_country_code,
+
+              billingAddressMatchesShippingAddress:
+                body.billing_address_matches_shipping_address,
+
+              billingFullName: body.billing_full_name,
+              billingCompany: body.billing_company,
+              billingAddressLine1: body.billing_address_line_1,
+              billingAddressLine2: body.billing_address_line_2,
+              billingCity: body.billing_city,
+              billingRegionName: body.billing_region_name,
+              billingRegionCode: body.billing_region_code,
+              billingZip: body.billing_zip,
+              billingCountryName: body.billing_country_name,
+              billingCountryCode: body.billing_country_code,
+
+              ...(promotion &&
+                discountTotal > 0 && {
+                  promotionId: promotion.id,
+                  promotionCode: promotion.code,
+                  promotionType: promotion.type,
+                  promotionValue: promotion.value,
+                  promotionCurrencyCode: currencyCode,
+                }),
+
+              locale: body.locale,
+              orderNumber: fastify.generateOrderNumber(),
+              source: "ecom",
+              isTest,
+
+              subtotalPrice,
+              discountTotal,
+              taxTotal,
+              shippingTotal,
+              totalPrice,
+              refundedTotal: 0,
+              additionalFeesTotal: 0,
+
+              currencyCode,
+              taxesIncluded: false,
+
+              clientIp: request.ip,
+            })
+            .returning()
+
+          // Insert order products
+          await tx.insert(orderProducts).values(
+            cartItems.map(
+              (cartItem) =>
+                ({
+                  orderId: order.id,
+                  productVariantId: cartItem.productVariant.id,
+                  productVariantName: cartItem.productVariant.name,
+                  productVariantSku: cartItem.productVariant.sku,
+                  productVariantImageUrl: cartItem.productVariant.image.url,
+                  // productVariantImageAltText: cartItem.productVariant.image.altText,
+                  quantity: cartItem.quantity,
+                  price:
+                    cartItem.productVariant.discountPrice ??
+                    cartItem.productVariant.price,
+                }) as (typeof orderProducts)["$inferInsert"],
+            ),
+          )
+
+          // Create Stripe checkout session
+          const stripeSession = await fastify.stripe.checkout.sessions.create({
+            mode: "payment",
+            client_reference_id: order.id,
+            success_url: `${fastify.env.FRONTEND_ENDPOINT}/checkout/success?orderId=${order.id}`,
+            cancel_url: `${fastify.env.FRONTEND_ENDPOINT}/checkout/shipping`,
+
+            line_items: cartItems.map((item) => ({
+              price: item.productVariant.stripePriceId,
+              quantity: item.quantity,
+            })),
+
+            // stripeCustomerId should never be undefined, but just to be safe...
+            ...(stripeCustomerId
+              ? { customer: stripeCustomerId }
+              : { customer_email: body.email }),
+
+            // TODO: apply discount to session
+            // discounts: [{}]
+          })
+
+          // Save Stripe session id
+          await tx
+            .update(orders)
+            .set({
+              stripeCheckoutSessionId: stripeSession.id,
+              updatedAt: new Date().toISOString(),
+            })
+            .where(eq(orders.id, order.id))
+
+          return {
+            success: true,
+            message: "Checkout session created successfully",
+            url: stripeSession.url,
+          }
         })
+
+        return reply.code(201).send(result)
       } catch (err) {
         fastify.log.error(err)
+        console.error(err)
         return reply.code(500).send({
           success: false,
           message: "Something went wrong while checking out",
@@ -161,7 +329,3 @@ export default async function checkout(fastify: FastifyInstance) {
     },
   })
 }
-
-// return reply
-//   .code(201)
-//   .send({ success: true, message: "Data received", data: body })

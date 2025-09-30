@@ -10,14 +10,20 @@ dotenvExpand.expand(dotenv.config({ quiet: true }))
 declare module "fastify" {
   interface FastifyInstance {
     env: {
+      NODE_ENV: "development" | "production"
       HOST: string
       PORT: number
+      FRONTEND_ENDPOINT: string
       SUPABASE_URL: string
       SUPABASE_JWT_ISSUER: string
       SUPABASE_JWK_REMOTE_ENDPOINT: string
       SUPABASE_DATABASE_URL: string
       SUPABASE_DATABASE_MIGRATIONS_URL: string
-      STRIPE_SECRET_KEY: string
+      STRIPE_LIVE_SECRET_KEY: string
+      STRIPE_LIVE_WEBHOOK_SECRET: string
+      STRIPE_TEST_SECRET_KEY: string
+      STRIPE_TEST_WEBHOOK_SECRET: string
+      STRIPE_API_VERSION: string
       RESEND_API_KEY: string
       RESEND_AUDIENCE_ID: string
       CLOUDFLARE_TURNSTILE_SITE_KEY: string
@@ -42,9 +48,16 @@ const envPlugin: FastifyPluginCallback = (fastify, _options, done) => {
   const schema = {
     type: "object",
     required: [
+      "NODE_ENV",
+      "HOST",
       "PORT",
+      "FRONTEND_ENDPOINT",
       "SUPABASE_URL",
-      "STRIPE_SECRET_KEY",
+      "STRIPE_LIVE_SECRET_KEY",
+      "STRIPE_LIVE_WEBHOOK_SECRET",
+      "STRIPE_TEST_SECRET_KEY",
+      "STRIPE_TEST_WEBHOOK_SECRET",
+      "STRIPE_API_VERSION",
       "RESEND_API_KEY",
       "RESEND_AUDIENCE_ID",
       "CLOUDFLARE_TURNSTILE_SITE_KEY",
@@ -56,6 +69,9 @@ const envPlugin: FastifyPluginCallback = (fastify, _options, done) => {
       "EMAIL_UNSUBSCRIBE_JWT_EXPIRATION_TIME",
     ],
     properties: {
+      NODE_ENV: {
+        type: "string",
+      },
       HOST: {
         type: "string",
         default: "0.0.0.0",
@@ -63,6 +79,10 @@ const envPlugin: FastifyPluginCallback = (fastify, _options, done) => {
       PORT: {
         type: "number",
         default: 3000,
+      },
+      FRONTEND_ENDPOINT: {
+        type: "string",
+        default: "http://localhost:5173",
       },
       SUPABASE_URL: {
         type: "string",
@@ -79,7 +99,19 @@ const envPlugin: FastifyPluginCallback = (fastify, _options, done) => {
       SUPABASE_DATABASE_MIGRATIONS_URL: {
         type: "string",
       },
-      STRIPE_SECRET_KEY: {
+      STRIPE_LIVE_SECRET_KEY: {
+        type: "string",
+      },
+      STRIPE_LIVE_WEBHOOK_SECRET: {
+        type: "string",
+      },
+      STRIPE_TEST_SECRET_KEY: {
+        type: "string",
+      },
+      STRIPE_TEST_WEBHOOK_SECRET: {
+        type: "string",
+      },
+      STRIPE_API_VERSION: {
         type: "string",
       },
       RESEND_API_KEY: {

@@ -42,7 +42,7 @@ const checkoutPromotionPlugin: FastifyPluginAsync = async (fastify) => {
           const hasStarted = now >= startsAt
           const isExpired = now > endsAt
 
-          if (!promotion.isEnabled || !hasStarted || isExpired)
+          if (!promotion.isActive || !hasStarted || isExpired)
             return reply.code(400).send({
               success: false,
               message: "Promotion code is unavailable or has expired",
@@ -50,11 +50,6 @@ const checkoutPromotionPlugin: FastifyPluginAsync = async (fastify) => {
 
           // Attach valid promotion to request
           request.promotion = promotion
-
-          // if (promotion.type === "percentage")
-          //   discountTotal = Math.floor(subtotal * (promotion.value / 100))
-          // else if (promotion.type === "fixed_amount")
-          //   discountTotal = promotion.value
         }
       } catch (err) {
         fastify.log.error(err)

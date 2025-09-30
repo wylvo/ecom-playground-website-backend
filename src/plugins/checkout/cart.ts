@@ -1,8 +1,14 @@
 import type { FastifyRequest, FastifyReply, FastifyPluginAsync } from "fastify"
 import fastifyPlugin from "fastify-plugin"
 import { CartItems } from "@/types/cart-items"
-import { cartItems, carts, productVariants } from "@/db/schema"
-import { eq } from "drizzle-orm"
+import {
+  cartItems,
+  carts,
+  productImages,
+  productVariantImages,
+  productVariants,
+} from "@/db/schema"
+import { eq, and } from "drizzle-orm"
 
 // Extend Fastify types
 declare module "fastify" {
@@ -46,18 +52,37 @@ const checkoutCartPlugin: FastifyPluginAsync = async (fastify) => {
               price: productVariants.price,
               discountPrice: productVariants.discountPrice,
               inventoryQuantity: productVariants.inventoryQuantity,
+              sku: productVariants.sku,
+              barcode: productVariants.barcode,
               weight: productVariants.weight,
               weightUnit: productVariants.weightUnit,
               grams: productVariants.grams,
               isShippingRequired: productVariants.isShippingRequired,
               isActive: productVariants.isActive,
               isVisible: productVariants.isVisible,
+
+              image: {
+                id: productImages.id,
+                url: productImages.url,
+                altText: productImages.altText,
+              } as any,
             },
           })
           .from(cartItems)
           .innerJoin(
             productVariants,
             eq(cartItems.productVariantId, productVariants.id),
+          )
+          .leftJoin(
+            productVariantImages,
+            and(
+              eq(productVariants.id, productVariantImages.productVariantId),
+              eq(productVariantImages.sortOrder, 1),
+            ),
+          )
+          .leftJoin(
+            productImages,
+            eq(productVariantImages.productImageId, productImages.id),
           )
           .where(eq(cartItems.cartId, cart.id))
           .limit(500)
@@ -70,7 +95,7 @@ const checkoutCartPlugin: FastifyPluginAsync = async (fastify) => {
 
         const hasInactiveOrInvisibleItems = items.some(
           (item) =>
-            !item.productVariant.isActive || item.productVariant.isVisible,
+            !item.productVariant.isActive || !item.productVariant.isVisible,
         )
         if (hasInactiveOrInvisibleItems)
           return reply.code(400).send({
@@ -78,7 +103,7 @@ const checkoutCartPlugin: FastifyPluginAsync = async (fastify) => {
             message: "Some items in your cart are unavailable",
           })
 
-        request.cartItems = items
+        request.cartItems = items as CartItems
       } catch (err) {
         fastify.log.error(err)
         return reply.code(500).send({
