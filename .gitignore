@@ -14,7 +14,9 @@ dist-ssr
 *.local
 *.env
 *.sql
-db
+/src/db/*
+!/src/db/schema.ts
+!/src/db/relations.ts
 
 # Editor directories and files
 .vscode/*
