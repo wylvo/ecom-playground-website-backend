@@ -39,7 +39,7 @@ const stripeSignaturePlugin: FastifyPluginAsync = async (fastify) => {
           })
         }
 
-        // Anonymous user or no stripeCustomerId found
+        // Event is valid, attach the event
         request.event = event
       } catch (err) {
         request.log.error(err)

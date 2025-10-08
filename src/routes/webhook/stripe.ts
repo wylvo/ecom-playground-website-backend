@@ -1,7 +1,11 @@
+import handleChargeRefunded from "@/handlers/stripe/handleChargeRefunded"
+import handleCheckoutSessionCompleted from "@/handlers/stripe/handleCheckoutSessionCompleted"
+import handleCheckoutSessionExpired from "@/handlers/stripe/handleCheckoutSessionExpired"
 import { FastifyInstance } from "fastify"
 import { ZodTypeProvider } from "fastify-type-provider-zod"
+import Stripe from "stripe"
 
-export default async function checkout(fastify: FastifyInstance) {
+export default async function stripe(fastify: FastifyInstance) {
   if (!fastify.stripeWebhookSecret)
     throw new Error("Stripe webhook secret not found")
 
@@ -11,46 +15,67 @@ export default async function checkout(fastify: FastifyInstance) {
     config: {
       rawBody: true,
     },
-    preHandler: [fastify.verifyStripeSignature],
+    preHandler: [
+      /*fastify.verifyStripeSignature,*/
+      fastify.verifyStripeIdempotentEvent,
+    ],
     handler: async (request, reply) => {
-      const event = request.event
+      if (request?.eventProcessed) return
 
-      switch (event.type) {
-        case "checkout.session.completed":
-          console.log("Event received checkout.session.completed:", event)
-          fastify.log.info(event)
-          break
+      const event = request.body as Stripe.Event
+      let isHandled = true
 
-        case "checkout.session.expired":
-          console.log("Event received checkout.session.expired:", event)
-          fastify.log.info(event)
-          break
+      try {
+        // Log the event in the database
+        await fastify.insertStripeEvent(event)
 
-        case "invoice.paid":
-          console.log("Event received invoice.paid:", event)
-          fastify.log.info(event)
-          break
-
-        case "invoice.payment_failed":
-          console.log("Event received invoice.payment_failed:", event)
-          fastify.log.info(event)
-          break
-
-        case "invoice.marked_uncollectible":
-          console.log("Event received invoice.marked_uncollectible:", event)
-          fastify.log.info(event)
-          break
-
-        case "invoice.payment_succeeded":
-          console.log("Event received invoice.payment_succeeded:", event)
-          fastify.log.info(event)
-          break
-
-        default:
-          fastify.log.info(`Unhandled event type ${event.type}.`)
+        // Send 200 OK to Stripe ASAP
+        reply.code(200).send({ success: true, message: "Received" })
+      } catch (error) {
+        fastify.log.error(
+          error,
+          "Something went wrong while logging a Stripe event",
+        )
+        return reply.code(500).send({
+          success: false,
+          message: "Something went wrong while logging a Stripe event",
+        })
       }
 
-      return reply.code(200).send({ success: true, message: "Received" })
+      try {
+        // Handle the event
+        switch (event.type) {
+          case "checkout.session.completed":
+            console.log("checkout.session.completed:", event.data.object)
+            void handleCheckoutSessionCompleted({ fastify, event })
+            break
+
+          case "checkout.session.expired":
+            console.log("checkout.session.expired:", event.data.object)
+            void handleCheckoutSessionExpired({ fastify, event })
+            break
+
+          case "charge.refunded":
+            console.log("charge.refunded:", event.data.object)
+            void handleChargeRefunded({ fastify, event })
+            break
+
+          default:
+            fastify.log.info(`Unhandled event type ${event.type}.`)
+            isHandled = false
+        }
+
+        fastify.log.info(`Resquest IP: ${request.ip}`)
+
+        // Mark the Stripe event as processed in the database
+        if (isHandled) void fastify.setStripeEventProcessedToTrue(event.id)
+      } catch (err) {
+        fastify.log.error(
+          err,
+          "Something went wrong while handling a Stripe event",
+        )
+        console.error(err)
+      }
     },
   })
 }

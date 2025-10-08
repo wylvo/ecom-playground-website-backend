@@ -125,8 +125,8 @@ export const productVariantsRelations = relations(
       fields: [productVariants.productId],
       references: [products.id],
     }),
-    cartItems: many(cartItems),
     orderProducts: many(orderProducts),
+    cartItems: many(cartItems),
   }),
 )
 
@@ -234,29 +234,6 @@ export const productCollectionsRelations = relations(
   }),
 )
 
-export const cartItemsRelations = relations(cartItems, ({ one }) => ({
-  cart: one(carts, {
-    fields: [cartItems.cartId],
-    references: [carts.id],
-  }),
-  productVariant: one(productVariants, {
-    fields: [cartItems.productVariantId],
-    references: [productVariants.id],
-  }),
-}))
-
-export const cartsRelations = relations(carts, ({ one, many }) => ({
-  cartItems: many(cartItems),
-  usersInAuth: one(authUsers, {
-    fields: [carts.authUserId],
-    references: [authUsers.id],
-  }),
-  customer: one(customers, {
-    fields: [carts.customerId],
-    references: [customers.id],
-  }),
-}))
-
 export const ordersRelations = relations(orders, ({ one, many }) => ({
   usersInAuth: one(authUsers, {
     fields: [orders.authUserId],
@@ -349,6 +326,29 @@ export const refundsRelations = relations(refunds, ({ one }) => ({
   usersInAuth: one(authUsers, {
     fields: [refunds.refundedByAuthUserId],
     references: [authUsers.id],
+  }),
+}))
+
+export const cartsRelations = relations(carts, ({ one, many }) => ({
+  usersInAuth: one(authUsers, {
+    fields: [carts.authUserId],
+    references: [authUsers.id],
+  }),
+  customer: one(customers, {
+    fields: [carts.customerId],
+    references: [customers.id],
+  }),
+  cartItems: many(cartItems),
+}))
+
+export const cartItemsRelations = relations(cartItems, ({ one }) => ({
+  cart: one(carts, {
+    fields: [cartItems.cartId],
+    references: [carts.id],
+  }),
+  productVariant: one(productVariants, {
+    fields: [cartItems.productVariantId],
+    references: [productVariants.id],
   }),
 }))
 

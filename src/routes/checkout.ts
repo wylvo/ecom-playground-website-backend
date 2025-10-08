@@ -51,18 +51,18 @@ const checkoutBodySchema = z.strictObject({
   shipping_country_name: requiredString(),
   shipping_country_code: requiredString(2, 2),
 
-  billing_address_matches_shipping_address: z.boolean(),
+  billing_address_matches_shipping_address: z.boolean().optional(),
 
-  billing_full_name: requiredString(2),
+  billing_full_name: optionalString(),
   billing_company: optionalString(),
-  billing_address_line_1: requiredString(),
+  billing_address_line_1: optionalString(),
   billing_address_line_2: optionalString(),
-  billing_city: requiredString(),
-  billing_region_name: requiredString(),
-  billing_region_code: requiredString(2, 2),
-  billing_zip: requiredString(1, 6),
-  billing_country_name: requiredString(),
-  billing_country_code: requiredString(2, 2),
+  billing_city: optionalString(),
+  billing_region_name: optionalString(),
+  billing_region_code: optionalString(2),
+  billing_zip: optionalString(6),
+  billing_country_name: optionalString(),
+  billing_country_code: optionalString(2),
 
   shipping_method_options: z.enum(["delivery", "pick_up"]),
 
@@ -119,6 +119,9 @@ export default async function checkout(fastify: FastifyInstance) {
           if (shouldCreateStripeCustomer) {
             stripeCustomer = await fastify.stripe.customers.create({
               email: body.email,
+              ...(isAnonymous
+                ? { name: "Anonymous/Guest" }
+                : { name: body.shipping_full_name }),
               metadata: {
                 isAnonymous: String(isAnonymous as boolean),
                 authUserId,
@@ -138,10 +141,6 @@ export default async function checkout(fastify: FastifyInstance) {
             shouldCreateStripeCustomer && stripeCustomer
               ? stripeCustomer.id
               : request.stripeCustomerId
-
-          console.log("\n")
-          console.log("stripeCustomerId:", stripeCustomerId)
-          console.log("\n")
 
           // Compute subtotal price
           let subtotalPrice = 0
@@ -208,9 +207,9 @@ export default async function checkout(fastify: FastifyInstance) {
               acceptsMarketing: body.accepts_marketing,
 
               shippingFullName: body.shipping_full_name,
-              shippingCompany: body.shipping_company,
+              shippingCompany: body.shipping_company || null,
               shippingAddressLine1: body.shipping_address_line_1,
-              shippingAddressLine2: body.shipping_address_line_2,
+              shippingAddressLine2: body.shipping_address_line_2 || null,
               shippingCity: body.shipping_city,
               shippingRegionName: body.shipping_region_name,
               shippingRegionCode: body.shipping_region_code,
@@ -218,19 +217,19 @@ export default async function checkout(fastify: FastifyInstance) {
               shippingCountryName: body.shipping_country_name,
               shippingCountryCode: body.shipping_country_code,
 
-              billingAddressMatchesShippingAddress:
-                body.billing_address_matches_shipping_address,
+              // billingAddressMatchesShippingAddress:
+              //   body.billing_address_matches_shipping_address,
 
-              billingFullName: body.billing_full_name,
-              billingCompany: body.billing_company,
-              billingAddressLine1: body.billing_address_line_1,
-              billingAddressLine2: body.billing_address_line_2,
-              billingCity: body.billing_city,
-              billingRegionName: body.billing_region_name,
-              billingRegionCode: body.billing_region_code,
-              billingZip: body.billing_zip,
-              billingCountryName: body.billing_country_name,
-              billingCountryCode: body.billing_country_code,
+              // billingFullName: body.billing_full_name,
+              // billingCompany: body.billing_company,
+              // billingAddressLine1: body.billing_address_line_1,
+              // billingAddressLine2: body.billing_address_line_2,
+              // billingCity: body.billing_city,
+              // billingRegionName: body.billing_region_name,
+              // billingRegionCode: body.billing_region_code,
+              // billingZip: body.billing_zip,
+              // billingCountryName: body.billing_country_name,
+              // billingCountryCode: body.billing_country_code,
 
               ...(promotion &&
                 discountTotal > 0 && {
@@ -271,7 +270,8 @@ export default async function checkout(fastify: FastifyInstance) {
                   productVariantName: cartItem.productVariant.name,
                   productVariantSku: cartItem.productVariant.sku,
                   productVariantImageUrl: cartItem.productVariant.image.url,
-                  // productVariantImageAltText: cartItem.productVariant.image.altText,
+                  productVariantImageAltText:
+                    cartItem.productVariant.image.altText,
                   quantity: cartItem.quantity,
                   price:
                     cartItem.productVariant.discountPrice ??
@@ -292,13 +292,18 @@ export default async function checkout(fastify: FastifyInstance) {
               quantity: item.quantity,
             })),
 
+            payment_method_types: ["card"],
+            shipping_address_collection: { allowed_countries: ["CA"] },
+            billing_address_collection: "required",
+
             // stripeCustomerId should never be undefined, but just to be safe...
             ...(stripeCustomerId
               ? { customer: stripeCustomerId }
               : { customer_email: body.email }),
 
             // TODO: apply discount to session
-            // discounts: [{}]
+            discounts: [{}],
+            allow_promotion_codes: true,
           })
 
           // Save Stripe session id
