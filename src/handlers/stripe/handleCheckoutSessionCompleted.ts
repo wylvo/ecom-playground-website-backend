@@ -39,8 +39,6 @@ export default async function ({ fastify, event }: StripeHandler) {
       }
      */
 
-    console.log("Charge:", charge)
-
     if (!charge)
       return fastify.log.error(
         `No charge found for payment intent: ${paymentIntentId}`,
@@ -83,15 +81,20 @@ export default async function ({ fastify, event }: StripeHandler) {
     }
 
     let billingAddressMatchesShippingAddress = false
+    const shippingAddress =
+      session.collected_information.shipping_details.address
+    const shippingFullName = session.collected_information.shipping_details.name
+    const billingAddress = charge.billing_details.address
+    const billingFullName = charge.billing_details.name
+
     if (
-      order.shippingFullName === charge.billing_details.name &&
-      order.shippingAddressLine1 === charge.billing_details.address.line1 &&
-      order.shippingAddressLine2 === charge.billing_details.address.line2 &&
-      order.shippingCity === charge.billing_details.address.city &&
-      order.shippingRegionCode === charge.billing_details.address.state &&
-      order.shippingZip ===
-        charge.billing_details.address.postal_code.split(" ").join("") &&
-      order.shippingCountryCode === charge.billing_details.address.country
+      shippingFullName === billingFullName &&
+      shippingAddress.line1 === billingAddress.line1 &&
+      shippingAddress.line2 === billingAddress.line2 &&
+      shippingAddress.city === billingAddress.city &&
+      shippingAddress.state === billingAddress.state &&
+      shippingAddress.postal_code === billingAddress.postal_code &&
+      shippingAddress.country === billingAddress.country
     ) {
       billingAddressMatchesShippingAddress = true
     }
@@ -104,31 +107,27 @@ export default async function ({ fastify, event }: StripeHandler) {
         financialStatus: "paid",
         stripePaymentStatus: session.payment_status,
 
+        shippingFullName: shippingFullName,
+        shippingAddressLine1: shippingAddress.line1,
+        shippingAddressLine2: shippingAddress.line2,
+        shippingCity: shippingAddress.city,
+        shippingRegionName: null,
+        shippingRegionCode: shippingAddress.state,
+        shippingZip: shippingAddress.postal_code.split(" ").join(""),
+        shippingCountryName: null,
+        shippingCountryCode: shippingAddress.country,
+
         billingAddressMatchesShippingAddress,
 
-        ...(billingAddressMatchesShippingAddress
-          ? {
-              billingFullName: order.shippingFullName,
-              billingAddressLine1: order.shippingAddressLine1,
-              billingAddressLine2: order.shippingAddressLine2,
-              billingCity: order.shippingCity,
-              billingRegionName: order.shippingRegionName,
-              billingRegionCode: order.shippingRegionCode,
-              billingZip: order.shippingZip,
-              billingCountryName: order.shippingCountryName,
-              billingCountryCode: order.shippingCountryCode,
-            }
-          : {
-              billingFullName: charge.billing_details.name,
-              billingAddressLine1: charge.billing_details.address.line1,
-              billingAddressLine2: charge.billing_details.address.line2,
-              billingCity: charge.billing_details.address.city,
-              billingRegionCode: charge.billing_details.address.state,
-              billingZip: charge.billing_details.address.postal_code
-                .split(" ")
-                .join(""),
-              billingCountryCode: charge.billing_details.address.country,
-            }),
+        billingFullName: billingFullName,
+        billingAddressLine1: billingAddress.line1,
+        billingAddressLine2: billingAddress.line2,
+        billingCity: billingAddress.city,
+        billingRegionName: null,
+        billingRegionCode: billingAddress.state,
+        billingZip: billingAddress.postal_code.split(" ").join(""),
+        billingCountryName: null,
+        billingCountryCode: billingAddress.country,
 
         paidAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

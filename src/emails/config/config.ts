@@ -1,7 +1,7 @@
 import { pixelBasedPreset, TailwindConfig } from "@react-email/components"
 import dotenv from "dotenv"
 import dotenvExpand from "dotenv-expand"
-dotenvExpand.expand(dotenv.config({ quiet: true }))
+dotenvExpand.expand(dotenv.config())
 
 export const brandName = process.env.EMAIL_BRAND_NAME
 export const brandLogoUrl = process.env.EMAIL_BRAND_LOGO_URL

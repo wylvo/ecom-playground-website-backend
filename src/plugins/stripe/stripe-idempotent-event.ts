@@ -39,9 +39,9 @@ const stripeIdempotentEventPlugin: FastifyPluginAsync = async (fastify) => {
       })
     } catch (error) {
       fastify.log.error(
+        error,
         `Failed to insert Stripe event: ${event.id} into database`,
       )
-      fastify.log.error(error)
     }
   })
 
@@ -54,8 +54,7 @@ const stripeIdempotentEventPlugin: FastifyPluginAsync = async (fastify) => {
         })
         .where(eq(stripeWebhookEvents.id, eventId))
     } catch (error) {
-      fastify.log.error(`Failed to update Stripe event: ${eventId}`)
-      fastify.log.error(error)
+      fastify.log.error(error, `Failed to update Stripe event: ${eventId}`)
     }
   })
 
@@ -78,13 +77,11 @@ const stripeIdempotentEventPlugin: FastifyPluginAsync = async (fastify) => {
             .code(200)
             .send({ success: true, message: "Stripe event already processed" })
         }
-      } catch (err) {
-        request.log.error(err)
-        return reply.code(500).send({
-          success: false,
-          message:
-            "Something went wrong verifying for an idempotent Stripe event",
-        })
+      } catch (error) {
+        const errorMessage =
+          "Something went wrong verifying for an idempotent Stripe event"
+        request.log.error(error, errorMessage)
+        return reply.code(500).send({ success: false, message: errorMessage })
       }
     },
   )

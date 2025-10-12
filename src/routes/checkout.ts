@@ -98,7 +98,11 @@ export default async function checkout(fastify: FastifyInstance) {
         const currencyCode = "CAD"
 
         // For Stripe
-        const { sub: authUserId, is_anonymous: isAnonymous } = request.user
+        const {
+          sub: authUserId,
+          is_anonymous: isAnonymous,
+          email,
+        } = request.user
         const shouldCreateStripeCustomer = request.shouldCreateStripeCustomer
         let stripeCustomer: Stripe.Response<Stripe.Customer>
 
@@ -118,18 +122,17 @@ export default async function checkout(fastify: FastifyInstance) {
           // Check if we have to create a stripe customer
           if (shouldCreateStripeCustomer) {
             stripeCustomer = await fastify.stripe.customers.create({
-              email: body.email,
               ...(isAnonymous
-                ? { name: "Anonymous/Guest" }
-                : { name: body.shipping_full_name }),
+                ? { name: "Anonymous/Guest", email: body.email }
+                : { name: body.shipping_full_name, email: email as string }),
               metadata: {
                 isAnonymous: String(isAnonymous as boolean),
                 authUserId,
               },
             })
 
-            // Persist stripe customer id if user is not anonymous
-            if (!isAnonymous && customer) {
+            // Persist stripe customer id if has customer & supabase user is not anonymous
+            if (customer && !isAnonymous) {
               await tx
                 .update(customers)
                 .set({ stripeCustomerId: stripeCustomer.id })
@@ -206,16 +209,16 @@ export default async function checkout(fastify: FastifyInstance) {
               phoneNumber: body.phone_number,
               acceptsMarketing: body.accepts_marketing,
 
-              shippingFullName: body.shipping_full_name,
-              shippingCompany: body.shipping_company || null,
-              shippingAddressLine1: body.shipping_address_line_1,
-              shippingAddressLine2: body.shipping_address_line_2 || null,
-              shippingCity: body.shipping_city,
-              shippingRegionName: body.shipping_region_name,
-              shippingRegionCode: body.shipping_region_code,
-              shippingZip: body.shipping_zip,
-              shippingCountryName: body.shipping_country_name,
-              shippingCountryCode: body.shipping_country_code,
+              // shippingFullName: body.shipping_full_name,
+              // shippingCompany: body.shipping_company || null,
+              // shippingAddressLine1: body.shipping_address_line_1,
+              // shippingAddressLine2: body.shipping_address_line_2 || null,
+              // shippingCity: body.shipping_city,
+              // shippingRegionName: body.shipping_region_name,
+              // shippingRegionCode: body.shipping_region_code,
+              // shippingZip: body.shipping_zip,
+              // shippingCountryName: body.shipping_country_name,
+              // shippingCountryCode: body.shipping_country_code,
 
               // billingAddressMatchesShippingAddress:
               //   body.billing_address_matches_shipping_address,

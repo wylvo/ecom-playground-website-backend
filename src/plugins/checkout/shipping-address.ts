@@ -16,7 +16,7 @@ const checkoutShippingAddressPlugin: FastifyPluginAsync = async (fastify) => {
     "verifyCheckoutShippingAddress",
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        // TODO: Validate user shipping address with external API (google, canada post)
+        // Validate user shipping address with external API (google, canada post)
       } catch (err) {
         fastify.log.error(err)
         return reply.code(500).send({

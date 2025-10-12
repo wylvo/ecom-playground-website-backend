@@ -5,7 +5,7 @@ import fastifyPlugin from "fastify-plugin"
 
 import dotenv from "dotenv"
 import dotenvExpand from "dotenv-expand"
-dotenvExpand.expand(dotenv.config({ quiet: true }))
+dotenvExpand.expand(dotenv.config())
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -48,6 +48,7 @@ const envPlugin: FastifyPluginCallback = (fastify, _options, done) => {
   const schema = {
     type: "object",
     required: [
+      "DOTENV_CONFIG_QUIET",
       "NODE_ENV",
       "HOST",
       "PORT",
@@ -69,6 +70,10 @@ const envPlugin: FastifyPluginCallback = (fastify, _options, done) => {
       "EMAIL_UNSUBSCRIBE_JWT_EXPIRATION_TIME",
     ],
     properties: {
+      DOTENV_CONFIG_QUIET: {
+        type: "string",
+        default: "true",
+      },
       NODE_ENV: {
         type: "string",
       },

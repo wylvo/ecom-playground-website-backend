@@ -30,24 +30,19 @@ const stripeSignaturePlugin: FastifyPluginAsync = async (fastify) => {
             signature,
             webhookSecret,
           )
-        } catch (err) {
-          fastify.log.error(err)
-          console.error(err)
-          return reply.code(400).send({
-            success: false,
-            message: "Webhook signature verification failed",
-          })
+        } catch (error) {
+          const errorMessage = "Webhook signature verification failed"
+          fastify.log.error(error, errorMessage)
+          return reply.code(400).send({ success: false, message: errorMessage })
         }
 
         // Event is valid, attach the event
         request.event = event
-      } catch (err) {
-        request.log.error(err)
-        return reply.code(500).send({
-          success: false,
-          message:
-            "Something went wrong verifying the Stripe webhook signature",
-        })
+      } catch (error) {
+        const errorMessage =
+          "Something went wrong verifying the Stripe webhook signature"
+        request.log.error(error, errorMessage)
+        return reply.code(500).send({ success: false, message: errorMessage })
       }
     },
   )

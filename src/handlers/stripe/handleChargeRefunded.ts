@@ -49,6 +49,7 @@ export default async function ({ fastify, event }: StripeHandler) {
         financialStatus: isFullyRefunded ? "refunded" : "partially_refunded",
         refundedTotal,
         updatedAt: new Date().toISOString(),
+        refundedAt: new Date().toISOString(),
       })
       .where(eq(orders.id, payment.orderId))
 
