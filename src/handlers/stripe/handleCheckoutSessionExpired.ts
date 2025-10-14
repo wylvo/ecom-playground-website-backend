@@ -12,6 +12,7 @@ export default async function ({ fastify, event }: StripeHandler) {
       .set({
         status: "cancelled",
         financialStatus: "voided",
+        stripePaymentStatus: session.payment_status,
         updatedAt: new Date().toISOString(),
         cancelledAt: new Date().toISOString(),
       })

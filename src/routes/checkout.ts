@@ -86,8 +86,7 @@ export default async function checkout(fastify: FastifyInstance) {
       // fastify.verifyCheckoutExistingOrder,
       fastify.verifyCheckoutPromotion,
       fastify.verifyCheckoutCart,
-      // fastify.verifyCheckoutShippingAddress,
-      fastify.verifyCheckoutTaxRates,
+      // fastify.verifyCheckoutTaxRates,
       fastify.verifyCheckoutCustomer,
       fastify.verifyCheckoutStripeCustomer,
     ],
@@ -145,52 +144,61 @@ export default async function checkout(fastify: FastifyInstance) {
               ? stripeCustomer.id
               : request.stripeCustomerId
 
-          // Compute subtotal price
-          let subtotalPrice = 0
+          // Compute subtotal
+          let amountSubtotal = 0
           for (const item of cartItems) {
             const unitPrice =
               item.productVariant.discountPrice ?? item.productVariant.price
-            subtotalPrice += unitPrice * item.quantity
+            amountSubtotal += unitPrice * item.quantity
           }
 
           // Compute discount total
-          let discountTotal = 0
+          let amountDiscount = 0
           if (promotion) {
             if (promotion.type === "percentage")
-              discountTotal = Math.floor(
-                subtotalPrice * (promotion.value / 100),
+              amountDiscount = Math.floor(
+                amountSubtotal * (promotion.value / 100),
               )
             else if (promotion.type === "fixed_amount")
-              discountTotal = promotion.value
+              amountDiscount = promotion.value
           }
 
           // Compute tax total
-          let taxTotal = 0
-          const regionTaxRate: any = taxRates?.find(
-            (taxRate) =>
-              taxRate.region?.code &&
-              taxRate.region.code === body.shipping_region_code &&
-              taxRate.country?.name === body.shipping_country_name,
-          )?.rate
-          const countryTaxRate: any = taxRates?.find(
-            (taxRate) =>
-              !taxRate.region?.code &&
-              taxRate.country?.name === body.shipping_country_name,
-          )?.rate
+          let amountTax = 0
+          if (taxRates) {
+            const regionTaxRate: any = taxRates?.find(
+              (taxRate) =>
+                taxRate.region?.code &&
+                taxRate.region.code === body.shipping_region_code &&
+                taxRate.country?.name === body.shipping_country_name,
+            )?.rate
+            const countryTaxRate: any = taxRates?.find(
+              (taxRate) =>
+                !taxRate.region?.code &&
+                taxRate.country?.name === body.shipping_country_name,
+            )?.rate
 
-          const countryTaxTotal = subtotalPrice * ((countryTaxRate ?? 0) / 100)
-          const regionTaxTotal = subtotalPrice * ((regionTaxRate ?? 0) / 100)
+            const countryTaxTotal =
+              amountSubtotal * ((countryTaxRate ?? 0) / 100)
+            const regionTaxTotal = amountSubtotal * ((regionTaxRate ?? 0) / 100)
 
-          taxTotal = Number((countryTaxTotal + regionTaxTotal).toFixed(0))
+            amountTax = Number((countryTaxTotal + regionTaxTotal).toFixed(0))
+          }
 
           // Compute shipping total
-          const shippingTotal = 0
+          const amountShipping = 0
+
+          // Compute additional fees total
+          const amountAdditionalFees = 0
 
           // Compute total price
-          const totalPrice = Number(
-            (subtotalPrice - discountTotal + taxTotal + shippingTotal).toFixed(
-              0,
-            ),
+          const amountTotal = Number(
+            (
+              amountSubtotal -
+              amountDiscount +
+              amountTax +
+              amountShipping
+            ).toFixed(0),
           )
 
           // Insert order
@@ -235,7 +243,7 @@ export default async function checkout(fastify: FastifyInstance) {
               // billingCountryCode: body.billing_country_code,
 
               ...(promotion &&
-                discountTotal > 0 && {
+                amountDiscount > 0 && {
                   promotionId: promotion.id,
                   promotionCode: promotion.code,
                   promotionType: promotion.type,
@@ -248,13 +256,14 @@ export default async function checkout(fastify: FastifyInstance) {
               source: "ecom",
               isTest,
 
-              subtotalPrice,
-              discountTotal,
-              taxTotal,
-              shippingTotal,
-              totalPrice,
-              refundedTotal: 0,
-              additionalFeesTotal: 0,
+              amountSubtotal,
+              amountDiscount,
+              amountTax,
+              amountShipping,
+              amountAdditionalFees,
+              amountTotal,
+
+              amountRefunded: 0,
 
               currencyCode,
               taxesIncluded: false,
@@ -295,18 +304,29 @@ export default async function checkout(fastify: FastifyInstance) {
               quantity: item.quantity,
             })),
 
+            // locale: body.locale as "fr-CA",
+
             payment_method_types: ["card"],
             shipping_address_collection: { allowed_countries: ["CA"] },
             billing_address_collection: "required",
+
+            // To allow Stripe to calculate taxes based on shipping address
+            automatic_tax: {
+              enabled: true,
+            },
+            customer_update: {
+              shipping: "auto",
+            },
 
             // stripeCustomerId should never be undefined, but just to be safe...
             ...(stripeCustomerId
               ? { customer: stripeCustomerId }
               : { customer_email: body.email }),
 
-            // TODO: apply discount to session
-            discounts: [{}],
-            allow_promotion_codes: true,
+            // Apply discount to session
+            ...(promotion?.stripeCouponId
+              ? { discounts: [{ coupon: promotion.stripeCouponId }] }
+              : null),
           })
 
           // Save Stripe session id
@@ -314,6 +334,8 @@ export default async function checkout(fastify: FastifyInstance) {
             .update(orders)
             .set({
               stripeCheckoutSessionId: stripeSession.id,
+              stripeCheckoutSessionUrl: stripeSession.url,
+              stripePaymentStatus: stripeSession.payment_status,
               updatedAt: new Date().toISOString(),
             })
             .where(eq(orders.id, order.id))

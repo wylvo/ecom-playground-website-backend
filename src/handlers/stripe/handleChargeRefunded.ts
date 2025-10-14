@@ -11,8 +11,8 @@ export default async function ({ fastify, event }: StripeHandler) {
       expand: ["refunds"],
     })
 
-    const refundedTotal = charge.amount_refunded
-    const isPositiveRefundTotal = refundedTotal > 0
+    const amountRefunded = charge.amount_refunded
+    const isPositiveRefundTotal = amountRefunded > 0
 
     if (!isPositiveRefundTotal)
       return fastify.log.error(
@@ -29,13 +29,13 @@ export default async function ({ fastify, event }: StripeHandler) {
         `No payment found for Stripe charge: ${charge.id}`,
       )
 
-    const isFullyRefunded = refundedTotal === payment.amount
+    const isFullyRefunded = amountRefunded === payment.amount
 
     // Update payment refunded amount
     await fastify.db
       .update(payments)
       .set({
-        amountRefunded: refundedTotal,
+        amountRefunded: amountRefunded,
         status: isFullyRefunded ? "refunded" : "partially_refunded",
         updatedAt: new Date().toISOString(),
       })
@@ -47,7 +47,7 @@ export default async function ({ fastify, event }: StripeHandler) {
       .set({
         ...(isFullyRefunded ? { status: "refunded" } : undefined),
         financialStatus: isFullyRefunded ? "refunded" : "partially_refunded",
-        refundedTotal,
+        amountRefunded,
         updatedAt: new Date().toISOString(),
         refundedAt: new Date().toISOString(),
       })

@@ -13,6 +13,7 @@ const __dirname = dirname(__filename)
 
 const fastify = Fastify({
   logger: true,
+  trustProxy: "127.0.0.1",
 })
 
 fastify.setValidatorCompiler(validatorCompiler)

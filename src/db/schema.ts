@@ -113,605 +113,6 @@ export const drizzleMigrationsLog = pgTable("__drizzle_migrations_log", {
   createdAt: bigint("created_at", { mode: "number" }),
 })
 
-export const orders = pgTable(
-  "orders",
-  {
-    id: uuid().defaultRandom().primaryKey().notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    customerId: bigint("customer_id", { mode: "number" }),
-    authUserId: uuid("auth_user_id"),
-    status: orderStatusEnum().notNull(),
-    financialStatus: orderFinancialStatusEnum("financial_status").notNull(),
-    fulfillmentStatus:
-      orderFulfillmentStatusEnum("fulfillment_status").notNull(),
-    stripeCheckoutSessionId: text("stripe_checkout_session_id"),
-    stripePaymentStatus: text("stripe_payment_status"),
-    idempotencyKey: text("idempotency_key"),
-    email: text().notNull(),
-    phoneNumber: text("phone_number"),
-    acceptsMarketing: boolean("accepts_marketing").default(false).notNull(),
-    shippingFullName: text("shipping_full_name"),
-    shippingCompany: text("shipping_company"),
-    shippingAddressLine1: text("shipping_address_line_1"),
-    shippingAddressLine2: text("shipping_address_line_2"),
-    shippingCity: text("shipping_city"),
-    shippingRegionName: text("shipping_region_name"),
-    shippingRegionCode: text("shipping_region_code"),
-    shippingZip: text("shipping_zip"),
-    shippingCountryName: text("shipping_country_name"),
-    shippingCountryCode: text("shipping_country_code"),
-    billingAddressMatchesShippingAddress: boolean(
-      "billing_address_matches_shipping_address",
-    ),
-    billingFullName: text("billing_full_name"),
-    billingCompany: text("billing_company"),
-    billingAddressLine1: text("billing_address_line_1"),
-    billingAddressLine2: text("billing_address_line_2"),
-    billingCity: text("billing_city"),
-    billingRegionName: text("billing_region_name"),
-    billingRegionCode: text("billing_region_code"),
-    billingZip: text("billing_zip"),
-    billingCountryName: text("billing_country_name"),
-    billingCountryCode: text("billing_country_code"),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    promotionId: bigint("promotion_id", { mode: "number" }),
-    promotionCode: text("promotion_code"),
-    promotionType: promotionTypeEnum("promotion_type"),
-    promotionValue: integer("promotion_value"),
-    promotionCurrencyCode: text("promotion_currency_code"),
-    locale: text().notNull(),
-    purchaseOrderNumber: text("purchase_order_number"),
-    orderNumber: text("order_number").notNull(),
-    notes: text(),
-    shippingNotes: text("shipping_notes"),
-    source: text(),
-    isTest: boolean("is_test").default(false),
-    subtotalPrice: integer("subtotal_price").notNull(),
-    discountTotal: integer("discount_total").default(0).notNull(),
-    taxTotal: integer("tax_total").default(0).notNull(),
-    shippingTotal: integer("shipping_total").default(0).notNull(),
-    totalPrice: integer("total_price").notNull(),
-    refundedTotal: integer("refunded_total").default(0).notNull(),
-    additionalFeesTotal: integer("additional_fees_total").default(0).notNull(),
-    currencyCode: text("currency_code").notNull(),
-    taxesIncluded: boolean("taxes_included").default(false).notNull(),
-    riskLevel: orderRiskLevelEnum("risk_level"),
-    riskReason: text("risk_reason"),
-    clientIp: text("client_ip"),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-    paidAt: timestamp("paid_at", { withTimezone: true, mode: "string" }),
-    fulfilledAt: timestamp("fulfilled_at", {
-      withTimezone: true,
-      mode: "string",
-    }),
-    cancelledAt: timestamp("cancelled_at", {
-      withTimezone: true,
-      mode: "string",
-    }),
-    refundedAt: timestamp("refunded_at", {
-      withTimezone: true,
-      mode: "string",
-    }),
-  },
-  (table) => [
-    uniqueIndex("uniq_stripe_checkout_session_id")
-      .using(
-        "btree",
-        table.stripeCheckoutSessionId.asc().nullsLast().op("text_ops"),
-      )
-      .where(sql`(stripe_checkout_session_id IS NOT NULL)`),
-    foreignKey({
-      columns: [table.authUserId],
-      foreignColumns: [authUsers.id],
-      name: "orders_auth_user_id_fkey",
-    }).onDelete("set null"),
-    foreignKey({
-      columns: [table.customerId],
-      foreignColumns: [customers.id],
-      name: "orders_customer_id_fkey",
-    }).onDelete("set null"),
-    foreignKey({
-      columns: [table.promotionId],
-      foreignColumns: [promotions.id],
-      name: "orders_promotion_id_fkey",
-    }).onDelete("set null"),
-    unique("orders_idempotency_key_key").on(table.idempotencyKey),
-    unique("orders_order_number_key").on(table.orderNumber),
-    pgPolicy("Allow user to view own orders", {
-      as: "permissive",
-      for: "select",
-      to: ["authenticated"],
-      using: sql`(auth.uid() = auth_user_id)`,
-    }),
-  ],
-)
-
-export const promotionRedemptions = pgTable(
-  "promotion_redemptions",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "promotion_redemptions_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    promotionId: bigint("promotion_id", { mode: "number" }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    customerId: bigint("customer_id", { mode: "number" }).notNull(),
-    orderId: uuid("order_id"),
-    redeemedAt: timestamp("redeemed_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.customerId],
-      foreignColumns: [customers.id],
-      name: "promotion_redemptions_customer_id_fkey",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [table.orderId],
-      foreignColumns: [orders.id],
-      name: "promotion_redemptions_order_id_fkey",
-    }),
-    foreignKey({
-      columns: [table.promotionId],
-      foreignColumns: [promotions.id],
-      name: "promotion_redemptions_promotion_id_fkey",
-    }).onDelete("cascade"),
-    unique("promotion_redemptions_uniq").on(
-      table.promotionId,
-      table.customerId,
-    ),
-  ],
-)
-
-export const refunds = pgTable(
-  "refunds",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "refunds_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    refundedByAuthUserId: uuid("refunded_by_auth_user_id"),
-    orderId: uuid("order_id").notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    paymentId: bigint("payment_id", { mode: "number" }),
-    transactionId: text("transaction_id").notNull(),
-    status: refundStatusEnum().notNull(),
-    amount: integer().notNull(),
-    currencyCode: text("currency_code").notNull(),
-    reason: text(),
-    isManual: boolean("is_manual").default(false),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-    refundedAt: timestamp("refunded_at", {
-      withTimezone: true,
-      mode: "string",
-    }),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.orderId],
-      foreignColumns: [orders.id],
-      name: "refunds_order_id_fkey",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [table.paymentId],
-      foreignColumns: [payments.id],
-      name: "refunds_payment_id_fkey",
-    }).onDelete("set null"),
-    foreignKey({
-      columns: [table.refundedByAuthUserId],
-      foreignColumns: [authUsers.id],
-      name: "refunds_refunded_by_auth_user_id_fkey",
-    }).onDelete("set null"),
-    unique("refunds_transaction_id_key").on(table.transactionId),
-  ],
-)
-
-export const carts = pgTable(
-  "carts",
-  {
-    id: uuid().defaultRandom().primaryKey().notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    customerId: bigint("customer_id", { mode: "number" }),
-    authUserId: uuid("auth_user_id").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.authUserId],
-      foreignColumns: [authUsers.id],
-      name: "carts_auth_user_id_fkey",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [table.customerId],
-      foreignColumns: [customers.id],
-      name: "carts_customer_id_fkey",
-    }).onDelete("set null"),
-    pgPolicy("Allow user to view own cart", {
-      as: "permissive",
-      for: "select",
-      to: ["authenticated"],
-      using: sql`(auth.uid() = auth_user_id)`,
-    }),
-  ],
-)
-
-export const customers = pgTable(
-  "customers",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "customers_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    stripeCustomerId: text("stripe_customer_id"),
-    authUserId: uuid("auth_user_id").notNull(),
-    email: text(),
-    firstName: text("first_name"),
-    lastName: text("last_name"),
-    phoneNumber: text("phone_number"),
-    isActive: boolean("is_active").default(true).notNull(),
-    isEmailVerified: boolean("is_email_verified").default(false).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-  },
-  (table) => [
-    uniqueIndex("uniq_customers_email")
-      .using("btree", table.email.asc().nullsLast().op("text_ops"))
-      .where(sql`(email IS NOT NULL)`),
-    uniqueIndex("uniq_customers_stripe_customer_id")
-      .using("btree", table.stripeCustomerId.asc().nullsLast().op("text_ops"))
-      .where(sql`(stripe_customer_id IS NOT NULL)`),
-    foreignKey({
-      columns: [table.authUserId],
-      foreignColumns: [authUsers.id],
-      name: "customers_auth_user_id_fkey",
-    }).onDelete("cascade"),
-  ],
-)
-
-export const orderShipments = pgTable(
-  "order_shipments",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "order_shipments_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    orderId: uuid("order_id").notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    shippingMethodId: bigint("shipping_method_id", { mode: "number" }),
-    shippingMethodName: text("shipping_method_name").notNull(),
-    shippingMethodCarrier: text("shipping_method_carrier").notNull(),
-    shippingMethodServiceCode: text("shipping_method_service_code"),
-    status: shippingStatusEnum().notNull(),
-    shippingTotal: integer("shipping_total").notNull(),
-    trackingNumber: text("tracking_number"),
-    trackingUrl: text("tracking_url"),
-    isReturn: boolean("is_return").default(false),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-    shippedAt: timestamp("shipped_at", { withTimezone: true, mode: "string" }),
-    deliveredAt: timestamp("delivered_at", {
-      withTimezone: true,
-      mode: "string",
-    }),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.orderId],
-      foreignColumns: [orders.id],
-      name: "order_shipments_order_id_fkey",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [table.shippingMethodId],
-      foreignColumns: [shippingMethods.id],
-      name: "order_shipments_shipping_method_id_fkey",
-    }).onDelete("set null"),
-  ],
-)
-
-export const orderProducts = pgTable(
-  "order_products",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "order_products_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    orderId: uuid("order_id").notNull(),
-    productVariantId: uuid("product_variant_id"),
-    productVariantName: text("product_variant_name").notNull(),
-    productVariantSku: text("product_variant_sku"),
-    productVariantImageUrl: text("product_variant_image_url"),
-    productVariantImageAltText: text("product_variant_image_alt_text"),
-    quantity: integer().notNull(),
-    price: integer().notNull(),
-    totalPrice: integer("total_price")
-      .notNull()
-      .generatedAlwaysAs(sql`(quantity * price)`),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.orderId],
-      foreignColumns: [orders.id],
-      name: "order_products_order_id_fkey",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [table.productVariantId],
-      foreignColumns: [productVariants.id],
-      name: "order_products_product_variant_id_fkey",
-    }).onDelete("set null"),
-  ],
-)
-
-export const shippingMethods = pgTable(
-  "shipping_methods",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "shipping_methods_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    name: text().notNull(),
-    carrier: text().notNull(),
-    serviceCode: text("service_code"),
-    isActive: boolean("is_active").default(true),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-  },
-  (table) => [
-    pgPolicy("Allow everyone to view shipping_methods", {
-      as: "permissive",
-      for: "select",
-      to: ["public"],
-      using: sql`true`,
-    }),
-  ],
-)
-
-export const payments = pgTable(
-  "payments",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "payments_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    orderId: uuid("order_id").notNull(),
-    transactionId: text("transaction_id").notNull(),
-    status: paymentStatusEnum().notNull(),
-    paymentMethod: paymentMethodEnum("payment_method").notNull(),
-    provider: paymentProviderEnum().notNull(),
-    providerResponseCode: text("provider_response_code"),
-    amount: integer().notNull(),
-    amountRefunded: integer("amount_refunded").default(0).notNull(),
-    currencyCode: text("currency_code").notNull(),
-    failureReason: text("failure_reason"),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.orderId],
-      foreignColumns: [orders.id],
-      name: "payments_order_id_fkey",
-    }).onDelete("cascade"),
-    unique("payments_transaction_id_key").on(table.transactionId),
-  ],
-)
-
-export const cartItems = pgTable(
-  "cart_items",
-  {
-    id: uuid().defaultRandom().primaryKey().notNull(),
-    productVariantId: uuid("product_variant_id").notNull(),
-    cartId: uuid("cart_id").notNull(),
-    quantity: integer().default(1).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.cartId],
-      foreignColumns: [carts.id],
-      name: "cart_items_cart_id_fkey",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [table.productVariantId],
-      foreignColumns: [productVariants.id],
-      name: "cart_items_product_variant_id_fkey",
-    }),
-    unique("cart_items_uniq").on(table.productVariantId, table.cartId),
-    pgPolicy("Allow user to insert items into own cart", {
-      as: "permissive",
-      for: "insert",
-      to: ["authenticated"],
-      withCheck: sql`(EXISTS ( SELECT 1
-   FROM carts
-  WHERE ((carts.id = cart_items.cart_id) AND (carts.auth_user_id = auth.uid()))))`,
-    }),
-    pgPolicy("Allow user to delete own cart items", {
-      as: "permissive",
-      for: "delete",
-      to: ["authenticated"],
-    }),
-    pgPolicy("Allow user to update own cart items", {
-      as: "permissive",
-      for: "update",
-      to: ["authenticated"],
-    }),
-    pgPolicy("Allow user to view own cart items", {
-      as: "permissive",
-      for: "select",
-      to: ["authenticated"],
-    }),
-    check("cart_items_quantity_check", sql`quantity >= 1`),
-  ],
-)
-
-export const translations = pgTable(
-  "translations",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "translations_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    entity: translationEntityEnum().notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    entityId: bigint("entity_id", { mode: "number" }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    localeId: bigint("locale_id", { mode: "number" }).notNull(),
-    key: text().notNull(),
-    value: text().notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-  },
-  (table) => [
-    index("idx_translations_entity_entity_id_locale_id_key").using(
-      "btree",
-      table.entity.asc().nullsLast().op("int8_ops"),
-      table.entityId.asc().nullsLast().op("int8_ops"),
-      table.localeId.asc().nullsLast().op("enum_ops"),
-      table.key.asc().nullsLast().op("text_ops"),
-    ),
-    foreignKey({
-      columns: [table.localeId],
-      foreignColumns: [locales.id],
-      name: "translations_locale_id_fkey",
-    }),
-    unique("translations_uniq").on(
-      table.entity,
-      table.entityId,
-      table.localeId,
-      table.key,
-    ),
-  ],
-)
-
-export const locales = pgTable(
-  "locales",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "locales_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    code: text().notNull(),
-    name: text().notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-  },
-  (table) => [
-    unique("locales_code_key").on(table.code),
-    pgPolicy("Allow everyone to view locales", {
-      as: "permissive",
-      for: "select",
-      to: ["public"],
-      using: sql`true`,
-    }),
-  ],
-)
-
-export const stripeWebhookEvents = pgTable("stripe_webhook_events", {
-  id: text().primaryKey().notNull(),
-  type: text().notNull(),
-  data: jsonb().notNull(),
-  receivedAt: timestamp("received_at", { withTimezone: true, mode: "string" })
-    .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-    .notNull(),
-  processed: boolean().default(false).notNull(),
-})
-
 export const customerAddresses = pgTable(
   "customer_addresses",
   {
@@ -1402,6 +803,46 @@ export const productCollections = pgTable(
   ],
 )
 
+export const customers = pgTable(
+  "customers",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
+      name: "customers_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    stripeCustomerId: text("stripe_customer_id"),
+    authUserId: uuid("auth_user_id").notNull(),
+    email: text(),
+    firstName: text("first_name"),
+    lastName: text("last_name"),
+    phoneNumber: text("phone_number"),
+    isActive: boolean("is_active").default(true).notNull(),
+    isEmailVerified: boolean("is_email_verified").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("uniq_customers_stripe_customer_id")
+      .using("btree", table.stripeCustomerId.asc().nullsLast().op("text_ops"))
+      .where(sql`(stripe_customer_id IS NOT NULL)`),
+    foreignKey({
+      columns: [table.authUserId],
+      foreignColumns: [authUsers.id],
+      name: "customers_auth_user_id_fkey",
+    }).onDelete("cascade"),
+    unique("customers_email_key").on(table.email),
+  ],
+)
+
 export const promotions = pgTable(
   "promotions",
   {
@@ -1415,6 +856,7 @@ export const promotions = pgTable(
       cache: 1,
     }),
     code: text().notNull(),
+    stripeCouponId: text("stripe_coupon_id"),
     description: text(),
     type: promotionTypeEnum().notNull(),
     value: integer().notNull(),
@@ -1431,5 +873,618 @@ export const promotions = pgTable(
       .default(sql`(now() AT TIME ZONE 'utc'::text)`)
       .notNull(),
   },
-  (table) => [unique("promotions_code_key").on(table.code)],
+  (table) => [
+    uniqueIndex("uniq_stripe_coupon_id")
+      .using("btree", table.stripeCouponId.asc().nullsLast().op("text_ops"))
+      .where(sql`(stripe_coupon_id IS NOT NULL)`),
+    unique("promotions_code_key").on(table.code),
+  ],
 )
+
+export const orders = pgTable(
+  "orders",
+  {
+    id: uuid().defaultRandom().primaryKey().notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    customerId: bigint("customer_id", { mode: "number" }),
+    authUserId: uuid("auth_user_id"),
+    status: orderStatusEnum().notNull(),
+    financialStatus: orderFinancialStatusEnum("financial_status").notNull(),
+    fulfillmentStatus:
+      orderFulfillmentStatusEnum("fulfillment_status").notNull(),
+    stripePaymentStatus: text("stripe_payment_status"),
+    stripeCheckoutSessionId: text("stripe_checkout_session_id"),
+    stripeCheckoutSessionUrl: text("stripe_checkout_session_url"),
+    idempotencyKey: text("idempotency_key"),
+    email: text().notNull(),
+    phoneNumber: text("phone_number"),
+    acceptsMarketing: boolean("accepts_marketing").default(false).notNull(),
+    shippingFullName: text("shipping_full_name"),
+    shippingCompany: text("shipping_company"),
+    shippingAddressLine1: text("shipping_address_line_1"),
+    shippingAddressLine2: text("shipping_address_line_2"),
+    shippingCity: text("shipping_city"),
+    shippingRegionName: text("shipping_region_name"),
+    shippingRegionCode: text("shipping_region_code"),
+    shippingZip: text("shipping_zip"),
+    shippingCountryName: text("shipping_country_name"),
+    shippingCountryCode: text("shipping_country_code"),
+    billingAddressMatchesShippingAddress: boolean(
+      "billing_address_matches_shipping_address",
+    ),
+    billingFullName: text("billing_full_name"),
+    billingCompany: text("billing_company"),
+    billingAddressLine1: text("billing_address_line_1"),
+    billingAddressLine2: text("billing_address_line_2"),
+    billingCity: text("billing_city"),
+    billingRegionName: text("billing_region_name"),
+    billingRegionCode: text("billing_region_code"),
+    billingZip: text("billing_zip"),
+    billingCountryName: text("billing_country_name"),
+    billingCountryCode: text("billing_country_code"),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    promotionId: bigint("promotion_id", { mode: "number" }),
+    promotionCode: text("promotion_code"),
+    promotionType: promotionTypeEnum("promotion_type"),
+    promotionValue: integer("promotion_value"),
+    promotionCurrencyCode: text("promotion_currency_code"),
+    locale: text().notNull(),
+    purchaseOrderNumber: text("purchase_order_number"),
+    orderNumber: text("order_number").notNull(),
+    notes: text(),
+    shippingNotes: text("shipping_notes"),
+    source: text(),
+    isTest: boolean("is_test").default(false),
+    amountSubtotal: integer("amount_subtotal").notNull(),
+    amountDiscount: integer("amount_discount").default(0).notNull(),
+    amountTax: integer("amount_tax").default(0).notNull(),
+    amountShipping: integer("amount_shipping").default(0).notNull(),
+    amountAdditionalFees: integer("amount_additional_fees")
+      .default(0)
+      .notNull(),
+    amountRefunded: integer("amount_refunded").default(0).notNull(),
+    amountTotal: integer("amount_total").notNull(),
+    currencyCode: text("currency_code").notNull(),
+    taxesIncluded: boolean("taxes_included").default(false).notNull(),
+    riskLevel: orderRiskLevelEnum("risk_level"),
+    riskReason: text("risk_reason"),
+    clientIp: text("client_ip"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+    paidAt: timestamp("paid_at", { withTimezone: true, mode: "string" }),
+    fulfilledAt: timestamp("fulfilled_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+    cancelledAt: timestamp("cancelled_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+    refundedAt: timestamp("refunded_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+  },
+  (table) => [
+    index("idx_orders_auth_user_id").using(
+      "btree",
+      table.authUserId.asc().nullsLast().op("uuid_ops"),
+    ),
+    index("idx_orders_client_ip").using(
+      "btree",
+      table.clientIp.asc().nullsLast().op("text_ops"),
+    ),
+    index("idx_orders_customer_id").using(
+      "btree",
+      table.customerId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("idx_orders_email").using(
+      "btree",
+      table.email.asc().nullsLast().op("text_ops"),
+    ),
+    index("idx_orders_financial_status").using(
+      "btree",
+      table.financialStatus.asc().nullsLast().op("enum_ops"),
+    ),
+    index("idx_orders_fulfillment_status").using(
+      "btree",
+      table.fulfillmentStatus.asc().nullsLast().op("enum_ops"),
+    ),
+    index("idx_orders_promotion_code").using(
+      "btree",
+      table.promotionCode.asc().nullsLast().op("text_ops"),
+    ),
+    index("idx_orders_promotion_id").using(
+      "btree",
+      table.promotionId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("idx_orders_status").using(
+      "btree",
+      table.status.asc().nullsLast().op("enum_ops"),
+    ),
+    index("idx_orders_stripe_checkout_session_id").using(
+      "btree",
+      table.stripeCheckoutSessionId.asc().nullsLast().op("text_ops"),
+    ),
+    uniqueIndex("uniq_stripe_checkout_session_id")
+      .using(
+        "btree",
+        table.stripeCheckoutSessionId.asc().nullsLast().op("text_ops"),
+      )
+      .where(sql`(stripe_checkout_session_id IS NOT NULL)`),
+    foreignKey({
+      columns: [table.authUserId],
+      foreignColumns: [authUsers.id],
+      name: "orders_auth_user_id_fkey",
+    }).onDelete("set null"),
+    foreignKey({
+      columns: [table.customerId],
+      foreignColumns: [customers.id],
+      name: "orders_customer_id_fkey",
+    }).onDelete("set null"),
+    foreignKey({
+      columns: [table.promotionId],
+      foreignColumns: [promotions.id],
+      name: "orders_promotion_id_fkey",
+    }).onDelete("set null"),
+    unique("orders_idempotency_key_key").on(table.idempotencyKey),
+    unique("orders_order_number_key").on(table.orderNumber),
+    pgPolicy("Allow user to view own orders", {
+      as: "permissive",
+      for: "select",
+      to: ["authenticated"],
+      using: sql`(auth.uid() = auth_user_id)`,
+    }),
+  ],
+)
+
+export const promotionRedemptions = pgTable(
+  "promotion_redemptions",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
+      name: "promotion_redemptions_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    promotionId: bigint("promotion_id", { mode: "number" }),
+    orderId: uuid("order_id"),
+    authUserId: uuid("auth_user_id"),
+    promotionCode: text("promotion_code").notNull(),
+    promotionStripeCouponId: text("promotion_stripe_coupon_id"),
+    promotionType: promotionTypeEnum("promotion_type").notNull(),
+    promotionValue: integer("promotion_value").notNull(),
+    promotionCurrencyCode: text("promotion_currency_code"),
+    redeemedAt: timestamp("redeemed_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+  },
+  (table) => [
+    index("idx_promotion_redemptions_promotion_code").using(
+      "btree",
+      table.promotionCode.asc().nullsLast().op("text_ops"),
+    ),
+    index("idx_promotion_redemptions_promotion_id").using(
+      "btree",
+      table.promotionId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.authUserId],
+      foreignColumns: [authUsers.id],
+      name: "promotion_redemptions_auth_user_id_fkey",
+    }).onDelete("set null"),
+    foreignKey({
+      columns: [table.orderId],
+      foreignColumns: [orders.id],
+      name: "promotion_redemptions_order_id_fkey",
+    }).onDelete("set null"),
+    foreignKey({
+      columns: [table.promotionId],
+      foreignColumns: [promotions.id],
+      name: "promotion_redemptions_promotion_id_fkey",
+    }).onDelete("set null"),
+  ],
+)
+
+export const orderShipments = pgTable(
+  "order_shipments",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
+      name: "order_shipments_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    orderId: uuid("order_id").notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    shippingMethodId: bigint("shipping_method_id", { mode: "number" }),
+    shippingMethodName: text("shipping_method_name").notNull(),
+    shippingMethodCarrier: text("shipping_method_carrier").notNull(),
+    shippingMethodServiceCode: text("shipping_method_service_code"),
+    status: shippingStatusEnum().notNull(),
+    amountTotal: integer("amount_total").notNull(),
+    trackingNumber: text("tracking_number"),
+    trackingUrl: text("tracking_url"),
+    isReturn: boolean("is_return").default(false),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+    shippedAt: timestamp("shipped_at", { withTimezone: true, mode: "string" }),
+    deliveredAt: timestamp("delivered_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.orderId],
+      foreignColumns: [orders.id],
+      name: "order_shipments_order_id_fkey",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.shippingMethodId],
+      foreignColumns: [shippingMethods.id],
+      name: "order_shipments_shipping_method_id_fkey",
+    }).onDelete("set null"),
+  ],
+)
+
+export const orderProducts = pgTable(
+  "order_products",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
+      name: "order_products_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    orderId: uuid("order_id").notNull(),
+    productVariantId: uuid("product_variant_id"),
+    productVariantName: text("product_variant_name").notNull(),
+    productVariantSku: text("product_variant_sku"),
+    productVariantImageUrl: text("product_variant_image_url"),
+    productVariantImageAltText: text("product_variant_image_alt_text"),
+    quantity: integer().notNull(),
+    price: integer().notNull(),
+    totalPrice: integer("total_price")
+      .notNull()
+      .generatedAlwaysAs(sql`(quantity * price)`),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.orderId],
+      foreignColumns: [orders.id],
+      name: "order_products_order_id_fkey",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.productVariantId],
+      foreignColumns: [productVariants.id],
+      name: "order_products_product_variant_id_fkey",
+    }).onDelete("set null"),
+  ],
+)
+
+export const shippingMethods = pgTable(
+  "shipping_methods",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
+      name: "shipping_methods_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    name: text().notNull(),
+    carrier: text().notNull(),
+    serviceCode: text("service_code"),
+    isActive: boolean("is_active").default(true),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+  },
+  (table) => [
+    pgPolicy("Allow everyone to view shipping_methods", {
+      as: "permissive",
+      for: "select",
+      to: ["public"],
+      using: sql`true`,
+    }),
+  ],
+)
+
+export const payments = pgTable(
+  "payments",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
+      name: "payments_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    orderId: uuid("order_id").notNull(),
+    transactionId: text("transaction_id").notNull(),
+    status: paymentStatusEnum().notNull(),
+    paymentMethod: paymentMethodEnum("payment_method").notNull(),
+    provider: paymentProviderEnum().notNull(),
+    providerResponseCode: text("provider_response_code"),
+    amount: integer().notNull(),
+    amountRefunded: integer("amount_refunded").default(0).notNull(),
+    currencyCode: text("currency_code").notNull(),
+    failureReason: text("failure_reason"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.orderId],
+      foreignColumns: [orders.id],
+      name: "payments_order_id_fkey",
+    }).onDelete("cascade"),
+    unique("payments_transaction_id_key").on(table.transactionId),
+  ],
+)
+
+export const refunds = pgTable(
+  "refunds",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
+      name: "refunds_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    refundedByAuthUserId: uuid("refunded_by_auth_user_id"),
+    orderId: uuid("order_id").notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    paymentId: bigint("payment_id", { mode: "number" }),
+    transactionId: text("transaction_id").notNull(),
+    status: refundStatusEnum().notNull(),
+    amount: integer().notNull(),
+    currencyCode: text("currency_code").notNull(),
+    reason: text(),
+    isManual: boolean("is_manual").default(false),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+    refundedAt: timestamp("refunded_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.orderId],
+      foreignColumns: [orders.id],
+      name: "refunds_order_id_fkey",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.paymentId],
+      foreignColumns: [payments.id],
+      name: "refunds_payment_id_fkey",
+    }).onDelete("set null"),
+    foreignKey({
+      columns: [table.refundedByAuthUserId],
+      foreignColumns: [authUsers.id],
+      name: "refunds_refunded_by_auth_user_id_fkey",
+    }).onDelete("set null"),
+    unique("refunds_transaction_id_key").on(table.transactionId),
+  ],
+)
+
+export const carts = pgTable(
+  "carts",
+  {
+    id: uuid().defaultRandom().primaryKey().notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    customerId: bigint("customer_id", { mode: "number" }),
+    authUserId: uuid("auth_user_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.authUserId],
+      foreignColumns: [authUsers.id],
+      name: "carts_auth_user_id_fkey",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.customerId],
+      foreignColumns: [customers.id],
+      name: "carts_customer_id_fkey",
+    }).onDelete("set null"),
+    pgPolicy("Allow user to view own cart", {
+      as: "permissive",
+      for: "select",
+      to: ["authenticated"],
+      using: sql`(auth.uid() = auth_user_id)`,
+    }),
+  ],
+)
+
+export const cartItems = pgTable(
+  "cart_items",
+  {
+    id: uuid().defaultRandom().primaryKey().notNull(),
+    productVariantId: uuid("product_variant_id").notNull(),
+    cartId: uuid("cart_id").notNull(),
+    quantity: integer().default(1).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.cartId],
+      foreignColumns: [carts.id],
+      name: "cart_items_cart_id_fkey",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.productVariantId],
+      foreignColumns: [productVariants.id],
+      name: "cart_items_product_variant_id_fkey",
+    }),
+    unique("cart_items_uniq").on(table.productVariantId, table.cartId),
+    pgPolicy("Allow user to insert items into own cart", {
+      as: "permissive",
+      for: "insert",
+      to: ["authenticated"],
+      withCheck: sql`(EXISTS ( SELECT 1
+   FROM carts
+  WHERE ((carts.id = cart_items.cart_id) AND (carts.auth_user_id = auth.uid()))))`,
+    }),
+    pgPolicy("Allow user to delete own cart items", {
+      as: "permissive",
+      for: "delete",
+      to: ["authenticated"],
+    }),
+    pgPolicy("Allow user to update own cart items", {
+      as: "permissive",
+      for: "update",
+      to: ["authenticated"],
+    }),
+    pgPolicy("Allow user to view own cart items", {
+      as: "permissive",
+      for: "select",
+      to: ["authenticated"],
+    }),
+    check("cart_items_quantity_check", sql`quantity >= 1`),
+  ],
+)
+
+export const translations = pgTable(
+  "translations",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
+      name: "translations_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    entity: translationEntityEnum().notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    entityId: bigint("entity_id", { mode: "number" }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    localeId: bigint("locale_id", { mode: "number" }).notNull(),
+    key: text().notNull(),
+    value: text().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+  },
+  (table) => [
+    index("idx_translations_entity_entity_id_locale_id_key").using(
+      "btree",
+      table.entity.asc().nullsLast().op("int8_ops"),
+      table.entityId.asc().nullsLast().op("int8_ops"),
+      table.localeId.asc().nullsLast().op("enum_ops"),
+      table.key.asc().nullsLast().op("text_ops"),
+    ),
+    foreignKey({
+      columns: [table.localeId],
+      foreignColumns: [locales.id],
+      name: "translations_locale_id_fkey",
+    }),
+    unique("translations_uniq").on(
+      table.entity,
+      table.entityId,
+      table.localeId,
+      table.key,
+    ),
+  ],
+)
+
+export const locales = pgTable(
+  "locales",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
+      name: "locales_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    code: text().notNull(),
+    name: text().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+  },
+  (table) => [
+    unique("locales_code_key").on(table.code),
+    pgPolicy("Allow everyone to view locales", {
+      as: "permissive",
+      for: "select",
+      to: ["public"],
+      using: sql`true`,
+    }),
+  ],
+)
+
+export const stripeWebhookEvents = pgTable("stripe_webhook_events", {
+  id: text().primaryKey().notNull(),
+  type: text().notNull(),
+  data: jsonb().notNull(),
+  receivedAt: timestamp("received_at", { withTimezone: true, mode: "string" })
+    .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+    .notNull(),
+  processed: boolean().default(false).notNull(),
+})

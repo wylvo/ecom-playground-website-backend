@@ -1,7 +1,7 @@
 import { StripeHandler } from "@/types/stripe-handler"
 import Stripe from "stripe"
 import { and, eq } from "drizzle-orm"
-import { orders, payments } from "@/db/schema"
+import { orders, payments, promotionRedemptions, promotions } from "@/db/schema"
 
 export default async function ({ fastify, event }: StripeHandler) {
   try {
@@ -21,23 +21,6 @@ export default async function ({ fastify, event }: StripeHandler) {
     )
 
     const charge = paymentIntent.latest_charge as Stripe.Charge
-
-    /**
-      billing_details: {
-        name: 'William Evora',
-        address: {
-          line1: '4-220 Rue de Beauharnois Ouest',
-          line2: null,
-          city: 'Montréal',
-          state: 'QC'
-          postal_code: 'H2N 1K2',
-          country: 'CA',
-        },
-        email: 'williamevora93@gmail.com',
-        phone: null,
-        tax_id: null
-      }
-     */
 
     if (!charge)
       return fastify.log.error(
@@ -87,6 +70,7 @@ export default async function ({ fastify, event }: StripeHandler) {
     const billingAddress = charge.billing_details.address
     const billingFullName = charge.billing_details.name
 
+    // Check if shipping address matches billing address
     if (
       shippingFullName === billingFullName &&
       shippingAddress.line1 === billingAddress.line1 &&
@@ -99,7 +83,7 @@ export default async function ({ fastify, event }: StripeHandler) {
       billingAddressMatchesShippingAddress = true
     }
 
-    // Update the order status and billing details
+    // Update the order state
     await fastify.db
       .update(orders)
       .set({
@@ -129,10 +113,35 @@ export default async function ({ fastify, event }: StripeHandler) {
         billingCountryName: null,
         billingCountryCode: billingAddress.country,
 
+        amountSubtotal: session.amount_subtotal,
+        amountDiscount: session.total_details.amount_discount,
+        amountShipping: session.total_details.amount_shipping,
+        amountTax: session.total_details.amount_tax,
+        amountTotal: session.amount_total,
+
         paidAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       })
       .where(eq(orders.id, order.id))
+
+    session.discounts.map(async (discount) => {
+      if (discount.coupon) {
+        const promotion = await fastify.db.query.promotions.findFirst({
+          where: eq(promotions.stripeCouponId, discount.coupon as string),
+        })
+
+        await fastify.db.insert(promotionRedemptions).values({
+          orderId: order.id,
+          authUserId: order.authUserId,
+          promotionId: promotion.id,
+          promotionCode: promotion.code,
+          promotionStripeCouponId: promotion.stripeCouponId,
+          promotionType: promotion.type,
+          promotionValue: promotion.value,
+          promotionCurrencyCode: promotion.currencyCode,
+        })
+      }
+    })
 
     fastify.log.info(
       `Successfully handled checkout.session.completed event for order: ${order.id}`,
