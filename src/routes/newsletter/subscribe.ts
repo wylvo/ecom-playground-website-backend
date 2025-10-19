@@ -37,7 +37,7 @@ export default async function subscribe(fastify: FastifyInstance) {
     schema: {
       body: subscribeBodySchema,
     },
-    // preHandler: [fastify.verifyTurnstile],
+    preHandler: [fastify.verifyTurnstile],
     handler: async (req, reply) => {
       const body = req.body as SubscribeBody
       let contact: UpdateContactResponse | CreateContactResponse

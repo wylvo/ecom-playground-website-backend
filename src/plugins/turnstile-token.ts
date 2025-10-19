@@ -1,4 +1,3 @@
-// plugins/turnstile.ts
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify"
 import fastifyPlugin from "fastify-plugin"
 
