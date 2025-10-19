@@ -13,6 +13,10 @@ declare module "fastify" {
       NODE_ENV: "development" | "production"
       HOST: string
       PORT: number
+      RATE_LIMIT_MAX: number
+      RATE_LIMIT_TIME_WINDOW: string
+      RATE_LIMIT_ALLOW_LIST: string[]
+      RATE_LIMIT_BAN: number
       FRONTEND_ENDPOINT: string
       SUPABASE_URL: string
       SUPABASE_JWT_ISSUER: string
@@ -24,6 +28,8 @@ declare module "fastify" {
       STRIPE_TEST_SECRET_KEY: string
       STRIPE_TEST_WEBHOOK_SECRET: string
       STRIPE_API_VERSION: string
+      STRIPE_WEBHOOK_IP_VERIFICATION: boolean
+      STRIPE_MAX_PENDING_CHECKOUT_SESSIONS_PER_IP_PER_DAY: number
       RESEND_API_KEY: string
       RESEND_AUDIENCE_ID: string
       CLOUDFLARE_TURNSTILE_SITE_KEY: string
@@ -52,6 +58,10 @@ const envPlugin: FastifyPluginCallback = (fastify, _options, done) => {
       "NODE_ENV",
       "HOST",
       "PORT",
+      "RATE_LIMIT_MAX",
+      "RATE_LIMIT_TIME_WINDOW",
+      "RATE_LIMIT_ALLOW_LIST",
+      "RATE_LIMIT_BAN",
       "FRONTEND_ENDPOINT",
       "SUPABASE_URL",
       "STRIPE_LIVE_SECRET_KEY",
@@ -59,6 +69,8 @@ const envPlugin: FastifyPluginCallback = (fastify, _options, done) => {
       "STRIPE_TEST_SECRET_KEY",
       "STRIPE_TEST_WEBHOOK_SECRET",
       "STRIPE_API_VERSION",
+      "STRIPE_WEBHOOK_IP_VERIFICATION",
+      "STRIPE_MAX_PENDING_CHECKOUT_SESSIONS_PER_IP_PER_DAY",
       "RESEND_API_KEY",
       "RESEND_AUDIENCE_ID",
       "CLOUDFLARE_TURNSTILE_SITE_KEY",
@@ -84,6 +96,23 @@ const envPlugin: FastifyPluginCallback = (fastify, _options, done) => {
       PORT: {
         type: "number",
         default: 3000,
+      },
+      RATE_LIMIT_MAX: {
+        type: "number",
+        default: 50,
+      },
+      RATE_LIMIT_TIME_WINDOW: {
+        type: "string",
+        default: "3 minutes",
+      },
+      RATE_LIMIT_ALLOW_LIST: {
+        type: "string",
+        separator: ",",
+        default: "127.0.0.1",
+      },
+      RATE_LIMIT_BAN: {
+        type: "number",
+        default: -1,
       },
       FRONTEND_ENDPOINT: {
         type: "string",
@@ -118,6 +147,14 @@ const envPlugin: FastifyPluginCallback = (fastify, _options, done) => {
       },
       STRIPE_API_VERSION: {
         type: "string",
+      },
+      STRIPE_WEBHOOK_IP_VERIFICATION: {
+        type: "boolean",
+        default: true,
+      },
+      STRIPE_MAX_PENDING_CHECKOUT_SESSIONS_PER_IP_PER_DAY: {
+        type: "number",
+        default: 25,
       },
       RESEND_API_KEY: {
         type: "string",

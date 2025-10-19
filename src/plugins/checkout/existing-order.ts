@@ -11,6 +11,10 @@ declare module "fastify" {
       reply: FastifyReply,
     ) => Promise<void>
   }
+
+  interface FastifyRequest {
+    idempotencyKey?: string
+  }
 }
 
 const checkoutExistingOrderPlugin: FastifyPluginAsync = async (fastify) => {
@@ -19,21 +23,22 @@ const checkoutExistingOrderPlugin: FastifyPluginAsync = async (fastify) => {
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const authUserId = request.user.sub
-        const idempotencyKey = ""
+        const cartItems = request.cartItems
 
-        // const [existingOrder] = await fastify.db
-        //   .select()
-        //   .from(orders)
-        //   .where(
-        //     and(
-        //       eq(orders.authUserId, authUserId),
-        //       eq(orders.idempotencyKey, idempotencyKey),
-        //       eq(orders.status, "pending"),
-        //       eq(orders.financialStatus, "pending"),
-        //       eq(orders.fulfillmentStatus, "unfulfilled"),
-        //     ),
-        //   )
-        //   .limit(1)
+        if (!cartItems)
+          return reply.code(404).send({
+            success: false,
+            message: "Cart not found",
+          })
+
+        const cartHash = fastify.generateCartHash(authUserId, cartItems)
+        const idempotencyKey = fastify.generateIdempotencyKey(
+          authUserId,
+          cartHash,
+        )
+        request.idempotencyKey = idempotencyKey
+
+        fastify.log.info(`Cart Hash (Verify): ${cartHash}`)
 
         const existingOrder = await fastify.db.query.orders.findFirst({
           where: and(
@@ -46,21 +51,34 @@ const checkoutExistingOrderPlugin: FastifyPluginAsync = async (fastify) => {
         })
 
         if (existingOrder) {
-          const session = await fastify.stripe.checkout.sessions.retrieve(
-            existingOrder.stripeCheckoutSessionId,
+          const url = existingOrder?.stripeCheckoutSessionUrl
+            ? existingOrder.stripeCheckoutSessionUrl
+            : (
+                await fastify.stripe.checkout.sessions.retrieve(
+                  existingOrder.stripeCheckoutSessionId,
+                )
+              ).url
+
+          if (!url)
+            return fastify.log.error(
+              "Existing order found but unable to resolve a Stripe checkout session URL",
+            )
+
+          fastify.log.info(
+            `Existing order found with idempotency key: ${existingOrder.idempotencyKey}`,
           )
 
           return reply.code(200).send({
             success: true,
-            message: "Pending existing order found",
-            url: session.url,
+            message: "Existing order found",
+            url,
           })
         }
       } catch (err) {
         fastify.log.error(err)
         return reply.code(500).send({
           success: false,
-          error: "Something went wrong verifying for an existing order",
+          message: "Something went wrong verifying for an existing order",
         })
       }
     },
@@ -69,4 +87,5 @@ const checkoutExistingOrderPlugin: FastifyPluginAsync = async (fastify) => {
 
 export default fastifyPlugin(checkoutExistingOrderPlugin, {
   name: "checkout-existing-order",
+  dependencies: ["database", "auth", "checkout-cart"],
 })

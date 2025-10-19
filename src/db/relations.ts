@@ -32,6 +32,24 @@ import {
 } from "./schema"
 import { authUsers } from "drizzle-orm/supabase"
 
+export const customersRelations = relations(customers, ({ one, many }) => ({
+  usersInAuth: one(authUsers, {
+    fields: [customers.authUserId],
+    references: [authUsers.id],
+  }),
+  customerAddresses: many(customerAddresses),
+  orders: many(orders),
+  carts: many(carts),
+}))
+
+export const usersInAuthRelations = relations(authUsers, ({ many }) => ({
+  customers: many(customers),
+  orders: many(orders),
+  promotionRedemptions: many(promotionRedemptions),
+  refunds: many(refunds),
+  carts: many(carts),
+}))
+
 export const customerAddressesRelations = relations(
   customerAddresses,
   ({ one }) => ({
@@ -50,16 +68,6 @@ export const countriesRelations = relations(countries, ({ many }) => ({
   customerAddresses: many(customerAddresses),
   regions: many(regions),
   taxRates: many(taxRates),
-}))
-
-export const customersRelations = relations(customers, ({ one, many }) => ({
-  customerAddresses: many(customerAddresses),
-  usersInAuth: one(authUsers, {
-    fields: [customers.authUserId],
-    references: [authUsers.id],
-  }),
-  orders: many(orders),
-  carts: many(carts),
 }))
 
 export const regionsRelations = relations(regions, ({ one, many }) => ({
@@ -225,14 +233,6 @@ export const productCollectionsRelations = relations(
     }),
   }),
 )
-
-export const usersInAuthRelations = relations(authUsers, ({ many }) => ({
-  customers: many(customers),
-  orders: many(orders),
-  promotionRedemptions: many(promotionRedemptions),
-  refunds: many(refunds),
-  carts: many(carts),
-}))
 
 export const ordersRelations = relations(orders, ({ one, many }) => ({
   usersInAuth: one(authUsers, {

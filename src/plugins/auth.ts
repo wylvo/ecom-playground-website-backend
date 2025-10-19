@@ -29,20 +29,24 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
       try {
         const authHeader = request.headers.authorization
         if (!authHeader?.startsWith("Bearer ")) {
-          return reply.code(401).send({ error: "Missing or invalid token" })
+          return reply
+            .code(401)
+            .send({ success: false, message: "Missing or invalid auth token" })
         }
 
         const [, token] = authHeader.split(" ")
 
         if (!token)
-          return reply.code(401).send({ error: "Missing or invalid token" })
+          return reply
+            .code(401)
+            .send({ success: false, message: "Missing or invalid auth token" })
 
         const { payload } = await verifySupabaseJWT(token)
 
         request.user = payload // { sub, email, is_anonymous, ... }
       } catch (err) {
         fastify.log.error(err)
-        return reply.code(401).send({ error: "Unauthorized" })
+        return reply.code(401).send({ success: false, message: "Unauthorized" })
       }
     },
   )

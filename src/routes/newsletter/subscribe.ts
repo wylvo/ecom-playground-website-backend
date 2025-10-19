@@ -2,8 +2,8 @@ import { type FastifyInstance } from "fastify"
 import z from "zod"
 import { CreateContactResponse, Resend, UpdateContactResponse } from "resend"
 
-import domains from "disposable-domains" with { type: "json" }
-import wildcards from "disposable-domains/wildcard.json" with { type: "json" }
+import domains from "@/plugins/disposable-domains/index.json" with { type: "json" }
+import wildcards from "@/plugins/disposable-domains/wildcard.json" with { type: "json" }
 import type { ZodTypeProvider } from "fastify-type-provider-zod"
 import Welcome from "@/emails/welcome"
 
@@ -37,7 +37,7 @@ export default async function subscribe(fastify: FastifyInstance) {
     schema: {
       body: subscribeBodySchema,
     },
-    preHandler: [fastify.verifyTurnstile],
+    // preHandler: [fastify.verifyTurnstile],
     handler: async (req, reply) => {
       const body = req.body as SubscribeBody
       let contact: UpdateContactResponse | CreateContactResponse
@@ -51,6 +51,7 @@ export default async function subscribe(fastify: FastifyInstance) {
 
         if (existingContact.data) {
           if (existingContact.data.unsubscribed === false)
+            // Already subscribed
             return { success: true }
           else
             // Mark existing contact as subscribed again

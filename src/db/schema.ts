@@ -113,18 +113,62 @@ export const drizzleMigrationsLog = pgTable("__drizzle_migrations_log", {
   createdAt: bigint("created_at", { mode: "number" }),
 })
 
+export const customers = pgTable(
+  "customers",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "customers_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
+    stripeCustomerId: text("stripe_customer_id"),
+    authUserId: uuid("auth_user_id").notNull(),
+    email: text(),
+    firstName: text("first_name"),
+    lastName: text("last_name"),
+    phoneNumber: text("phone_number"),
+    isActive: boolean("is_active").default(true).notNull(),
+    isEmailVerified: boolean("is_email_verified").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("uniq_customers_stripe_customer_id")
+      .using("btree", table.stripeCustomerId.asc().nullsLast().op("text_ops"))
+      .where(sql`(stripe_customer_id IS NOT NULL)`),
+    foreignKey({
+      columns: [table.authUserId],
+      foreignColumns: [authUsers.id],
+      name: "customers_auth_user_id_fkey",
+    }).onDelete("cascade"),
+    unique("customers_email_key").on(table.email),
+  ],
+)
+
 export const customerAddresses = pgTable(
   "customer_addresses",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "customer_addresses_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "customer_addresses_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     customerId: bigint("customer_id", { mode: "number" }).notNull(),
     fullName: text("full_name").notNull(),
@@ -164,14 +208,16 @@ export const countries = pgTable(
   "countries",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "countries_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "countries_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     name: text().notNull(),
     code: char({ length: 2 }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
@@ -197,14 +243,16 @@ export const regions = pgTable(
   "regions",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "regions_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "regions_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     countryId: bigint("country_id", { mode: "number" }).notNull(),
     name: text().notNull(),
@@ -236,14 +284,16 @@ export const taxRates = pgTable(
   "tax_rates",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "tax_rates_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "tax_rates_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     countryId: integer("country_id").notNull(),
     regionId: integer("region_id"),
     rate: numeric({ precision: 6, scale: 3 }).notNull(),
@@ -278,14 +328,16 @@ export const taxRates = pgTable(
 
 export const dataTypes = pgTable("data_types", {
   // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-  id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-    name: "data_types_id_seq",
-    startWith: 1,
-    increment: 1,
-    minValue: 1,
-    maxValue: 9223372036854775807,
-    cache: 1,
-  }),
+  id: bigint({ mode: "number" })
+    .primaryKey()
+    .generatedAlwaysAsIdentity({
+      name: "data_types_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
     .default(sql`(now() AT TIME ZONE 'utc'::text)`)
     .notNull(),
@@ -297,14 +349,16 @@ export const productVariantOptions = pgTable(
   "product_variant_options",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "product_variant_options_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "product_variant_options_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     productVariantId: uuid("product_variant_id").notNull(),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     productOptionValueId: bigint("product_option_value_id", {
@@ -353,14 +407,16 @@ export const productOptionValueImages = pgTable(
   "product_option_value_images",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "product_option_value_images_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "product_option_value_images_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     productOptionValueId: bigint("product_option_value_id", {
       mode: "number",
@@ -388,14 +444,16 @@ export const productOptions = pgTable(
   "product_options",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "product_options_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "product_options_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     productId: bigint("product_id", { mode: "number" }).notNull(),
     name: text().notNull(),
@@ -426,14 +484,16 @@ export const productOptionValues = pgTable(
   "product_option_values",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "product_option_values_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "product_option_values_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     productOptionId: bigint("product_option_id", { mode: "number" }).notNull(),
     value: text().notNull(),
@@ -465,14 +525,16 @@ export const productVariantMetafields = pgTable(
   "product_variant_metafields",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "product_variant_metafields_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "product_variant_metafields_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     productVariantId: uuid("product_variant_id").notNull(),
     namespace: text().notNull(),
     key: text().notNull(),
@@ -509,14 +571,16 @@ export const productVariantImages = pgTable(
   "product_variant_images",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "product_variant_images_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "product_variant_images_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     productVariantId: uuid("product_variant_id").notNull(),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     productImageId: bigint("product_image_id", { mode: "number" }).notNull(),
@@ -623,14 +687,16 @@ export const productMetafields = pgTable(
   "product_metafields",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "product_metafields_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "product_metafields_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     productId: bigint("product_id", { mode: "number" }).notNull(),
     namespace: text().notNull(),
@@ -668,14 +734,16 @@ export const productImages = pgTable(
   "product_images",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "product_images_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "product_images_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     url: text().notNull(),
     altText: text("alt_text"),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
@@ -699,14 +767,16 @@ export const products = pgTable(
   "products",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "products_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "products_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     productCollectionId: bigint("product_collection_id", { mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
@@ -759,14 +829,16 @@ export const productCollections = pgTable(
   "product_collections",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "product_collections_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "product_collections_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     parentProductCollectionId: bigint("parent_product_collection_id", {
       mode: "number",
@@ -803,58 +875,20 @@ export const productCollections = pgTable(
   ],
 )
 
-export const customers = pgTable(
-  "customers",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "customers_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    stripeCustomerId: text("stripe_customer_id"),
-    authUserId: uuid("auth_user_id").notNull(),
-    email: text(),
-    firstName: text("first_name"),
-    lastName: text("last_name"),
-    phoneNumber: text("phone_number"),
-    isActive: boolean("is_active").default(true).notNull(),
-    isEmailVerified: boolean("is_email_verified").default(false).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
-      .default(sql`(now() AT TIME ZONE 'utc'::text)`)
-      .notNull(),
-  },
-  (table) => [
-    uniqueIndex("uniq_customers_stripe_customer_id")
-      .using("btree", table.stripeCustomerId.asc().nullsLast().op("text_ops"))
-      .where(sql`(stripe_customer_id IS NOT NULL)`),
-    foreignKey({
-      columns: [table.authUserId],
-      foreignColumns: [authUsers.id],
-      name: "customers_auth_user_id_fkey",
-    }).onDelete("cascade"),
-    unique("customers_email_key").on(table.email),
-  ],
-)
-
 export const promotions = pgTable(
   "promotions",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "promotions_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "promotions_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     code: text().notNull(),
     stripeCouponId: text("stripe_coupon_id"),
     description: text(),
@@ -896,6 +930,8 @@ export const orders = pgTable(
     stripeCheckoutSessionId: text("stripe_checkout_session_id"),
     stripeCheckoutSessionUrl: text("stripe_checkout_session_url"),
     idempotencyKey: text("idempotency_key"),
+    cartHash: text("cart_hash"),
+    cartItems: jsonb("cart_items"),
     email: text().notNull(),
     phoneNumber: text("phone_number"),
     acceptsMarketing: boolean("accepts_marketing").default(false).notNull(),
@@ -946,6 +982,7 @@ export const orders = pgTable(
     amountTotal: integer("amount_total").notNull(),
     currencyCode: text("currency_code").notNull(),
     taxesIncluded: boolean("taxes_included").default(false).notNull(),
+    isTaxExempt: boolean("is_tax_exempt").default(false).notNull(),
     riskLevel: orderRiskLevelEnum("risk_level"),
     riskReason: text("risk_reason"),
     clientIp: text("client_ip"),
@@ -1046,14 +1083,16 @@ export const promotionRedemptions = pgTable(
   "promotion_redemptions",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "promotion_redemptions_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "promotion_redemptions_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     promotionId: bigint("promotion_id", { mode: "number" }),
     orderId: uuid("order_id"),
@@ -1098,14 +1137,16 @@ export const orderShipments = pgTable(
   "order_shipments",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "order_shipments_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "order_shipments_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     orderId: uuid("order_id").notNull(),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     shippingMethodId: bigint("shipping_method_id", { mode: "number" }),
@@ -1147,14 +1188,16 @@ export const orderProducts = pgTable(
   "order_products",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "order_products_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "order_products_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     orderId: uuid("order_id").notNull(),
     productVariantId: uuid("product_variant_id"),
     productVariantName: text("product_variant_name").notNull(),
@@ -1191,14 +1234,16 @@ export const shippingMethods = pgTable(
   "shipping_methods",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "shipping_methods_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "shipping_methods_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     name: text().notNull(),
     carrier: text().notNull(),
     serviceCode: text("service_code"),
@@ -1224,14 +1269,16 @@ export const payments = pgTable(
   "payments",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "payments_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "payments_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     orderId: uuid("order_id").notNull(),
     transactionId: text("transaction_id").notNull(),
     status: paymentStatusEnum().notNull(),
@@ -1263,14 +1310,16 @@ export const refunds = pgTable(
   "refunds",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "refunds_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "refunds_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     refundedByAuthUserId: uuid("refunded_by_auth_user_id"),
     orderId: uuid("order_id").notNull(),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
@@ -1372,13 +1421,18 @@ export const cartItems = pgTable(
       name: "cart_items_product_variant_id_fkey",
     }),
     unique("cart_items_uniq").on(table.productVariantId, table.cartId),
+    pgPolicy("Allow user to view own cart items", {
+      as: "permissive",
+      for: "select",
+      to: ["authenticated"],
+      using: sql`(EXISTS ( SELECT 1
+   FROM carts
+  WHERE ((carts.id = cart_items.cart_id) AND (carts.auth_user_id = auth.uid()))))`,
+    }),
     pgPolicy("Allow user to insert items into own cart", {
       as: "permissive",
       for: "insert",
       to: ["authenticated"],
-      withCheck: sql`(EXISTS ( SELECT 1
-   FROM carts
-  WHERE ((carts.id = cart_items.cart_id) AND (carts.auth_user_id = auth.uid()))))`,
     }),
     pgPolicy("Allow user to delete own cart items", {
       as: "permissive",
@@ -1390,11 +1444,6 @@ export const cartItems = pgTable(
       for: "update",
       to: ["authenticated"],
     }),
-    pgPolicy("Allow user to view own cart items", {
-      as: "permissive",
-      for: "select",
-      to: ["authenticated"],
-    }),
     check("cart_items_quantity_check", sql`quantity >= 1`),
   ],
 )
@@ -1403,14 +1452,16 @@ export const translations = pgTable(
   "translations",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "translations_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "translations_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     entity: translationEntityEnum().notNull(),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     entityId: bigint("entity_id", { mode: "number" }).notNull(),
@@ -1451,14 +1502,16 @@ export const locales = pgTable(
   "locales",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({
-      name: "locales_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
+    id: bigint({ mode: "number" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity({
+        name: "locales_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
     code: text().notNull(),
     name: text().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
@@ -1483,8 +1536,12 @@ export const stripeWebhookEvents = pgTable("stripe_webhook_events", {
   id: text().primaryKey().notNull(),
   type: text().notNull(),
   data: jsonb().notNull(),
+  processed: boolean().default(false).notNull(),
+  processedAt: timestamp("processed_at", {
+    withTimezone: true,
+    mode: "string",
+  }),
   receivedAt: timestamp("received_at", { withTimezone: true, mode: "string" })
     .default(sql`(now() AT TIME ZONE 'utc'::text)`)
     .notNull(),
-  processed: boolean().default(false).notNull(),
 })

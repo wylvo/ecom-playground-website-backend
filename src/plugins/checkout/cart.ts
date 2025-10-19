@@ -9,6 +9,7 @@ import {
   productVariants,
 } from "@/db/schema"
 import { eq, and } from "drizzle-orm"
+import { createHash } from "node:crypto"
 
 // Extend Fastify types
 declare module "fastify" {
@@ -17,6 +18,7 @@ declare module "fastify" {
       request: FastifyRequest,
       reply: FastifyReply,
     ) => Promise<void>
+    generateCartHash: (authUserId: string, cartItems: CartItems) => string
   }
   interface FastifyRequest {
     cartItems?: CartItems
@@ -24,6 +26,26 @@ declare module "fastify" {
 }
 
 const checkoutCartPlugin: FastifyPluginAsync = async (fastify) => {
+  fastify.decorate(
+    "generateCartHash",
+    (authUserId: string, cartItems: CartItems): string => {
+      const sortedItems = cartItems
+        .map(({ productVariant, quantity }) => ({
+          id: productVariant.id,
+          price: productVariant.price,
+          discountPrice: productVariant.discountPrice,
+          stripePriceId: productVariant.stripePriceId,
+          stripeProductId: productVariant.stripeProductId,
+          isShippingRequired: productVariant.isShippingRequired,
+          quantity,
+        }))
+        .sort((a, b) => a.id.localeCompare(b.id))
+
+      const rawJson = JSON.stringify({ authUserId, items: sortedItems })
+      return createHash("sha256").update(rawJson).digest("hex")
+    },
+  )
+
   fastify.decorate(
     "verifyCheckoutCart",
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -108,11 +130,14 @@ const checkoutCartPlugin: FastifyPluginAsync = async (fastify) => {
         fastify.log.error(err)
         return reply.code(500).send({
           success: false,
-          error: "Something went wrong verifying your cart",
+          message: "Something went wrong verifying your cart",
         })
       }
     },
   )
 }
 
-export default fastifyPlugin(checkoutCartPlugin, { name: "checkout-cart" })
+export default fastifyPlugin(checkoutCartPlugin, {
+  name: "checkout-cart",
+  dependencies: ["database", "auth"],
+})

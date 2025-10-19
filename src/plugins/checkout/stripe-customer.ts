@@ -34,7 +34,7 @@ const checkoutStripeCustomerPlugin: FastifyPluginAsync = async (fastify) => {
         request.shouldCreateStripeCustomer = true
         return
       } catch (err) {
-        request.log.error(err)
+        fastify.log.error(err)
         return reply.code(500).send({
           success: false,
           message: "Something went wrong verifying the Stripe customer",
@@ -46,4 +46,5 @@ const checkoutStripeCustomerPlugin: FastifyPluginAsync = async (fastify) => {
 
 export default fastifyPlugin(checkoutStripeCustomerPlugin, {
   name: "checkout-stripe-customer",
+  dependencies: ["auth", "checkout-customer"],
 })

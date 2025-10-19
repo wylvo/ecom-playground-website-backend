@@ -80,7 +80,7 @@ const stripeIdempotentEventPlugin: FastifyPluginAsync = async (fastify) => {
       } catch (error) {
         const errorMessage =
           "Something went wrong verifying for an idempotent Stripe event"
-        request.log.error(error, errorMessage)
+        fastify.log.error(error, errorMessage)
         return reply.code(500).send({ success: false, message: errorMessage })
       }
     },
@@ -89,5 +89,5 @@ const stripeIdempotentEventPlugin: FastifyPluginAsync = async (fastify) => {
 
 export default fastifyPlugin(stripeIdempotentEventPlugin, {
   name: "stripe-idempotent-event",
-  dependencies: ["stripe", "stripe-signature"],
+  dependencies: ["database", "stripe", "stripe-signature"],
 })

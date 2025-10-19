@@ -83,10 +83,10 @@ export default async function checkout(fastify: FastifyInstance) {
     preHandler: [
       // fastify.verifyTurnstile,
       fastify.verifyUser,
-      // fastify.verifyCheckoutExistingOrder,
-      fastify.verifyCheckoutPromotion,
+      fastify.verifyCheckoutPendingOrderLimit,
       fastify.verifyCheckoutCart,
-      // fastify.verifyCheckoutTaxRates,
+      fastify.verifyCheckoutExistingOrder,
+      fastify.verifyCheckoutPromotion,
       fastify.verifyCheckoutCustomer,
       fastify.verifyCheckoutStripeCustomer,
     ],
@@ -201,6 +201,15 @@ export default async function checkout(fastify: FastifyInstance) {
             ).toFixed(0),
           )
 
+          const cartHash = fastify.generateCartHash(authUserId, cartItems)
+          const idempotencyKey = fastify.generateIdempotencyKey(
+            authUserId,
+            cartHash,
+          )
+
+          fastify.log.info(`Cart Hash: ${cartHash}`)
+          fastify.log.info(`Idempotency Key: ${idempotencyKey}`)
+
           // Insert order
           const [order] = await tx
             .insert(orders)
@@ -211,7 +220,9 @@ export default async function checkout(fastify: FastifyInstance) {
               financialStatus: "pending",
               fulfillmentStatus: "unfulfilled",
 
-              // TODO: idempotencyKey
+              idempotencyKey,
+              cartHash,
+              cartItems,
 
               email: body.email,
               phoneNumber: body.phone_number,
@@ -267,6 +278,7 @@ export default async function checkout(fastify: FastifyInstance) {
 
               currencyCode,
               taxesIncluded: false,
+              isTaxExempt: false,
 
               clientIp: request.ip,
             })
@@ -295,6 +307,7 @@ export default async function checkout(fastify: FastifyInstance) {
           // Create Stripe checkout session
           const stripeSession = await fastify.stripe.checkout.sessions.create({
             mode: "payment",
+            payment_method_types: ["card"],
             client_reference_id: order.id,
             success_url: `${fastify.env.FRONTEND_ENDPOINT}/checkout/success?orderId=${order.id}`,
             cancel_url: `${fastify.env.FRONTEND_ENDPOINT}/checkout/shipping`,
@@ -306,7 +319,7 @@ export default async function checkout(fastify: FastifyInstance) {
 
             // locale: body.locale as "fr-CA",
 
-            payment_method_types: ["card"],
+            // Collect shipping and billing addresses
             shipping_address_collection: { allowed_countries: ["CA"] },
             billing_address_collection: "required",
 
@@ -323,7 +336,7 @@ export default async function checkout(fastify: FastifyInstance) {
               ? { customer: stripeCustomerId }
               : { customer_email: body.email }),
 
-            // Apply discount to session
+            // Condtionally apply discount to the session
             ...(promotion?.stripeCouponId
               ? { discounts: [{ coupon: promotion.stripeCouponId }] }
               : null),

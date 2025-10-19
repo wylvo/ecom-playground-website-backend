@@ -35,7 +35,7 @@ const checkoutCustomerPlugin: FastifyPluginAsync = async (fastify) => {
         fastify.log.error(err)
         return reply.code(500).send({
           success: false,
-          error: "Something went wrong verifying the customer",
+          message: "Something went wrong verifying the customer",
         })
       }
     },
@@ -44,4 +44,5 @@ const checkoutCustomerPlugin: FastifyPluginAsync = async (fastify) => {
 
 export default fastifyPlugin(checkoutCustomerPlugin, {
   name: "checkout-customer",
+  dependencies: ["database", "auth"],
 })

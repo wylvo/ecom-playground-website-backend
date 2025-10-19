@@ -21,8 +21,8 @@ declare module "fastify" {
 }
 
 const turnstilePlugin: FastifyPluginAsync = async (fastify) => {
-  const secret = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY
-  const verifyUrl = process.env.CLOUDFLARE_TURNSTILE_SITE_VERIFY_ENDPOINT
+  const secret = fastify.env.CLOUDFLARE_TURNSTILE_SECRET_KEY
+  const verifyUrl = fastify.env.CLOUDFLARE_TURNSTILE_SITE_VERIFY_ENDPOINT
 
   if (!secret || !verifyUrl) throw new Error("Missing Turnstile env vars")
 
@@ -64,4 +64,7 @@ const turnstilePlugin: FastifyPluginAsync = async (fastify) => {
   )
 }
 
-export default fastifyPlugin(turnstilePlugin, { name: "turnstile-token" })
+export default fastifyPlugin(turnstilePlugin, {
+  name: "turnstile-token",
+  dependencies: ["env"],
+})

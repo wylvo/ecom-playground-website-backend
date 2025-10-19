@@ -127,7 +127,7 @@ const checkoutPromotionPlugin: FastifyPluginAsync = async (fastify) => {
         fastify.log.error(err)
         return reply.code(500).send({
           success: false,
-          error: "Something went wrong verifying the promotion code",
+          message: "Something went wrong verifying the promotion code",
         })
       }
     },
@@ -136,4 +136,5 @@ const checkoutPromotionPlugin: FastifyPluginAsync = async (fastify) => {
 
 export default fastifyPlugin(checkoutPromotionPlugin, {
   name: "checkout-promotion",
+  dependencies: ["database"],
 })

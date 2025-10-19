@@ -16,7 +16,12 @@ export default async function stripe(fastify: FastifyInstance) {
       rawBody: true,
     },
     preHandler: [
-      /*fastify.verifyStripeSignature,*/
+      // Conditionally add the IP verification
+      ...(fastify.env.STRIPE_WEBHOOK_IP_VERIFICATION
+        ? [fastify.verifyStripeWebhookIp]
+        : []),
+
+      fastify.verifyStripeSignature,
       fastify.verifyStripeIdempotentEvent,
     ],
     handler: async (request, reply) => {

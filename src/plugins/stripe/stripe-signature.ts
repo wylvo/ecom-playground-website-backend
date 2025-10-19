@@ -41,7 +41,7 @@ const stripeSignaturePlugin: FastifyPluginAsync = async (fastify) => {
       } catch (error) {
         const errorMessage =
           "Something went wrong verifying the Stripe webhook signature"
-        request.log.error(error, errorMessage)
+        fastify.log.error(error, errorMessage)
         return reply.code(500).send({ success: false, message: errorMessage })
       }
     },
@@ -50,5 +50,5 @@ const stripeSignaturePlugin: FastifyPluginAsync = async (fastify) => {
 
 export default fastifyPlugin(stripeSignaturePlugin, {
   name: "stripe-signature",
-  dependencies: ["stripe"],
+  dependencies: ["stripe", "stripe-webhook-ip"],
 })

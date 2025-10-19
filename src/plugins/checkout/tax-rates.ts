@@ -58,7 +58,7 @@ const checkoutTaxRatesPlugin: FastifyPluginAsync = async (fastify) => {
         fastify.log.error(err)
         return reply.code(500).send({
           success: false,
-          error: "Something went wrong verifying tax rates",
+          message: "Something went wrong verifying tax rates",
         })
       }
     },

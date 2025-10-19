@@ -21,7 +21,7 @@ const checkoutShippingAddressPlugin: FastifyPluginAsync = async (fastify) => {
         fastify.log.error(err)
         return reply.code(500).send({
           success: false,
-          error: "Something went wrong verifying your shipping address",
+          message: "Something went wrong verifying your shipping address",
         })
       }
     },
@@ -30,4 +30,5 @@ const checkoutShippingAddressPlugin: FastifyPluginAsync = async (fastify) => {
 
 export default fastifyPlugin(checkoutShippingAddressPlugin, {
   name: "checkout-shipping-address",
+  dependencies: ["database"],
 })
