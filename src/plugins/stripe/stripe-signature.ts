@@ -15,18 +15,25 @@ declare module "fastify" {
   }
 }
 
+interface StripeWebhookBody {
+  raw: Buffer
+}
+
 const stripeSignaturePlugin: FastifyPluginAsync = async (fastify) => {
   fastify.decorate(
     "verifyStripeSignature",
-    async (request: FastifyRequest, reply: FastifyReply) => {
+    async (
+      request: FastifyRequest<{ Body: StripeWebhookBody }>,
+      reply: FastifyReply,
+    ) => {
       try {
-        let event = request.body as Stripe.Event
+        let event: Stripe.Event
         const webhookSecret = fastify.stripeWebhookSecret
         const signature = request.headers["stripe-signature"]
 
         try {
           event = fastify.stripe.webhooks.constructEvent(
-            request.rawBody,
+            request.body.raw,
             signature,
             webhookSecret,
           )
@@ -35,6 +42,8 @@ const stripeSignaturePlugin: FastifyPluginAsync = async (fastify) => {
           fastify.log.error(error, errorMessage)
           return reply.code(400).send({ success: false, message: errorMessage })
         }
+
+        fastify.log.info("Stripe header signature verified successfully!")
 
         // Event is valid, attach the event
         request.event = event

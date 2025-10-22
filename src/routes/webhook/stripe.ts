@@ -3,18 +3,30 @@ import handleCheckoutSessionCompleted from "@/handlers/stripe/handleCheckoutSess
 import handleCheckoutSessionExpired from "@/handlers/stripe/handleCheckoutSessionExpired"
 import { FastifyInstance } from "fastify"
 import { ZodTypeProvider } from "fastify-type-provider-zod"
-import Stripe from "stripe"
 
 export default async function stripe(fastify: FastifyInstance) {
   if (!fastify.stripeWebhookSecret)
     throw new Error("Stripe webhook secret not found")
 
+  fastify.addContentTypeParser(
+    "application/json",
+    { parseAs: "buffer" },
+    function (req, body, done) {
+      try {
+        var newBody = {
+          raw: body,
+        }
+        done(null, newBody)
+      } catch (error) {
+        error.statusCode = 400
+        done(error, undefined)
+      }
+    },
+  )
+
   fastify.withTypeProvider<ZodTypeProvider>().route({
     method: "POST",
     url: "/stripe",
-    config: {
-      rawBody: true,
-    },
     preHandler: [
       // Conditionally add the IP verification
       ...(fastify.env.STRIPE_WEBHOOK_IP_VERIFICATION
@@ -27,7 +39,7 @@ export default async function stripe(fastify: FastifyInstance) {
     handler: async (request, reply) => {
       if (request?.eventProcessed) return
 
-      const event = request.body as Stripe.Event
+      const event = request.event
       let isHandled = true
 
       try {

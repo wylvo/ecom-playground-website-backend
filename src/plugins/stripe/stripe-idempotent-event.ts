@@ -62,7 +62,7 @@ const stripeIdempotentEventPlugin: FastifyPluginAsync = async (fastify) => {
     "verifyStripeIdempotentEvent",
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        let event = request.body as Stripe.Event
+        const event = request.event
 
         const existingEvent =
           await fastify.db.query.stripeWebhookEvents.findFirst({
