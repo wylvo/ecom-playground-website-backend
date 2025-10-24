@@ -10,6 +10,7 @@ import {
 } from "@/db/schema"
 import { eq, and } from "drizzle-orm"
 import { createHash } from "node:crypto"
+import { Cart } from "@/types/cart"
 
 // Extend Fastify types
 declare module "fastify" {
@@ -18,9 +19,11 @@ declare module "fastify" {
       request: FastifyRequest,
       reply: FastifyReply,
     ) => Promise<void>
+    getCartItems: (cartId: string) => Promise<CartItems>
     generateCartHash: (authUserId: string, cartItems: CartItems) => string
   }
   interface FastifyRequest {
+    cart?: Cart
     cartItems?: CartItems
   }
 }
@@ -38,12 +41,66 @@ const checkoutCartPlugin: FastifyPluginAsync = async (fastify) => {
           stripeProductId: productVariant.stripeProductId,
           isShippingRequired: productVariant.isShippingRequired,
           quantity,
+          updatedAt: productVariant.updatedAt,
         }))
         .sort((a, b) => a.id.localeCompare(b.id))
 
       const rawJson = JSON.stringify({ authUserId, items: sortedItems })
       return createHash("sha256").update(rawJson).digest("hex")
     },
+  )
+
+  fastify.decorate(
+    "getCartItems",
+    async (cartId: string) =>
+      await fastify.db
+        .select({
+          id: cartItems.id,
+          quantity: cartItems.quantity,
+          productVariant: {
+            id: productVariants.id,
+            stripeProductId: productVariants.stripeProductId,
+            stripePriceId: productVariants.stripePriceId,
+            name: productVariants.name,
+            price: productVariants.price,
+            discountPrice: productVariants.discountPrice,
+            inventoryQuantity: productVariants.inventoryQuantity,
+            sku: productVariants.sku,
+            barcode: productVariants.barcode,
+            weight: productVariants.weight,
+            weightUnit: productVariants.weightUnit,
+            grams: productVariants.grams,
+            isShippingRequired: productVariants.isShippingRequired,
+            isActive: productVariants.isActive,
+            isVisible: productVariants.isVisible,
+
+            image: {
+              id: productImages.id,
+              url: productImages.url,
+              altText: productImages.altText,
+            } as any,
+
+            updatedAt: productVariants.updatedAt,
+          },
+        })
+        .from(cartItems)
+        .innerJoin(
+          productVariants,
+          eq(cartItems.productVariantId, productVariants.id),
+        )
+        .leftJoin(
+          productVariantImages,
+          and(
+            eq(productVariants.id, productVariantImages.productVariantId),
+            eq(productVariantImages.sortOrder, 1),
+          ),
+        )
+        .leftJoin(
+          productImages,
+          eq(productVariantImages.productImageId, productImages.id),
+        )
+        .where(eq(cartItems.cartId, cartId))
+        .limit(500),
   )
 
   fastify.decorate(
@@ -62,52 +119,7 @@ const checkoutCartPlugin: FastifyPluginAsync = async (fastify) => {
             message: "Cart not found",
           })
 
-        const items = await fastify.db
-          .select({
-            id: cartItems.id,
-            quantity: cartItems.quantity,
-            productVariant: {
-              id: productVariants.id,
-              stripeProductId: productVariants.stripeProductId,
-              stripePriceId: productVariants.stripePriceId,
-              name: productVariants.name,
-              price: productVariants.price,
-              discountPrice: productVariants.discountPrice,
-              inventoryQuantity: productVariants.inventoryQuantity,
-              sku: productVariants.sku,
-              barcode: productVariants.barcode,
-              weight: productVariants.weight,
-              weightUnit: productVariants.weightUnit,
-              grams: productVariants.grams,
-              isShippingRequired: productVariants.isShippingRequired,
-              isActive: productVariants.isActive,
-              isVisible: productVariants.isVisible,
-
-              image: {
-                id: productImages.id,
-                url: productImages.url,
-                altText: productImages.altText,
-              } as any,
-            },
-          })
-          .from(cartItems)
-          .innerJoin(
-            productVariants,
-            eq(cartItems.productVariantId, productVariants.id),
-          )
-          .leftJoin(
-            productVariantImages,
-            and(
-              eq(productVariants.id, productVariantImages.productVariantId),
-              eq(productVariantImages.sortOrder, 1),
-            ),
-          )
-          .leftJoin(
-            productImages,
-            eq(productVariantImages.productImageId, productImages.id),
-          )
-          .where(eq(cartItems.cartId, cart.id))
-          .limit(500)
+        const items = await fastify.getCartItems(cart.id)
 
         if (items.length === 0)
           return reply.code(400).send({
@@ -125,6 +137,7 @@ const checkoutCartPlugin: FastifyPluginAsync = async (fastify) => {
             message: "Some items in your cart are unavailable",
           })
 
+        request.cart = cart as Cart
         request.cartItems = items as CartItems
       } catch (err) {
         fastify.log.error(err)

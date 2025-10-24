@@ -53,6 +53,8 @@ const stripeWebhookIpPlugin: FastifyPluginAsync = async (fastify) => {
             error: "Not Found",
             statusCode: 404,
           })
+
+        fastify.log.info(`Stripe webhook IP: ${ip} is authentic. Continuing`)
       } catch (error) {
         fastify.log.error(
           error,

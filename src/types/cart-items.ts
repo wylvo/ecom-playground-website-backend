@@ -23,5 +23,7 @@ export type CartItems = {
       url: string
       altText: string
     }
+
+    updatedAt: string
   }
 }[]

@@ -8,6 +8,7 @@ export default async function stripe(fastify: FastifyInstance) {
   if (!fastify.stripeWebhookSecret)
     throw new Error("Stripe webhook secret not found")
 
+  // https://github.com/fastify/help/issues/158#issuecomment-648006959
   fastify.addContentTypeParser(
     "application/json",
     { parseAs: "buffer" },
@@ -63,17 +64,23 @@ export default async function stripe(fastify: FastifyInstance) {
         // Handle the event
         switch (event.type) {
           case "checkout.session.completed":
-            console.log("checkout.session.completed:", event.data.object)
+            fastify.log.debug(
+              `checkout.session.completed: ${JSON.stringify(event.data.object)}`,
+            )
             void handleCheckoutSessionCompleted({ fastify, event })
             break
 
           case "checkout.session.expired":
-            console.log("checkout.session.expired:", event.data.object)
+            fastify.log.debug(
+              `checkout.session.expired: ${JSON.stringify(event.data.object)}`,
+            )
             void handleCheckoutSessionExpired({ fastify, event })
             break
 
           case "charge.refunded":
-            console.log("charge.refunded:", event.data.object)
+            fastify.log.debug(
+              `charge.refunded: ${JSON.stringify(event.data.object)}`,
+            )
             void handleChargeRefunded({ fastify, event })
             break
 
@@ -81,8 +88,6 @@ export default async function stripe(fastify: FastifyInstance) {
             fastify.log.info(`Unhandled event type ${event.type}.`)
             isHandled = false
         }
-
-        fastify.log.info(`Resquest IP: ${request.ip}`)
 
         // Mark the Stripe event as processed in the database
         if (isHandled) void fastify.setStripeEventProcessedToTrue(event.id)

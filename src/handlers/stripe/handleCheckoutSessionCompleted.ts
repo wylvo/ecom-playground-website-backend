@@ -1,7 +1,14 @@
 import { StripeHandler } from "@/types/stripe-handler"
 import Stripe from "stripe"
 import { and, eq } from "drizzle-orm"
-import { orders, payments, promotionRedemptions, promotions } from "@/db/schema"
+import {
+  carts,
+  cartItems,
+  orders,
+  payments,
+  promotionRedemptions,
+  promotions,
+} from "@/db/schema"
 
 export default async function ({ fastify, event }: StripeHandler) {
   try {
@@ -38,7 +45,7 @@ export default async function ({ fastify, event }: StripeHandler) {
       )
 
     // Prevent duplicate handling
-    if (order.status === "paid" && order.financialStatus === "paid")
+    if (order.status === "paid" || order.financialStatus === "paid")
       return fastify.log.info(
         `Order: ${order.id} already marked as paid. Skipping`,
       )
@@ -142,6 +149,39 @@ export default async function ({ fastify, event }: StripeHandler) {
         })
       }
     })
+
+    // Clear the cart items, and modify updatedAt column timestamp
+    const cart = await fastify.db.query.carts.findFirst({
+      where: eq(carts.authUserId, order.authUserId),
+    })
+
+    if (!cart || !cart?.id)
+      return fastify.log.warn(
+        `No cart found for user: ${order.authUserId}. Not clearing the cart`,
+      )
+
+    const theCartItems = await fastify.getCartItems(cart.id)
+    const currentCartHash = fastify.generateCartHash(
+      order.authUserId,
+      theCartItems,
+    )
+
+    if (currentCartHash !== order.cartHash)
+      fastify.log.warn(
+        `Cart items updated before checkout was completed for user: ${order.authUserId}. Not clearing the cart`,
+      )
+
+    if (currentCartHash === order.cartHash) {
+      await fastify.db.delete(cartItems).where(eq(cartItems.cartId, cart.id))
+      fastify.log.warn(`Cart items cleared for user: ${order.authUserId}`)
+    }
+
+    await fastify.db
+      .update(carts)
+      .set({
+        updatedAt: new Date().toISOString(), // Necessary to generate a unique order idempotency key
+      })
+      .where(eq(carts.authUserId, order.authUserId))
 
     fastify.log.info(
       `Successfully handled checkout.session.completed event for order: ${order.id}`,

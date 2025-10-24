@@ -13,7 +13,9 @@ declare module "fastify" {
   }
 
   interface FastifyRequest {
+    cartHash?: string
     idempotencyKey?: string
+    existingOrder?: typeof orders.$inferSelect
   }
 }
 
@@ -23,6 +25,7 @@ const checkoutExistingOrderPlugin: FastifyPluginAsync = async (fastify) => {
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const authUserId = request.user.sub
+        const cart = request.cart
         const cartItems = request.cartItems
 
         if (!cartItems)
@@ -35,10 +38,13 @@ const checkoutExistingOrderPlugin: FastifyPluginAsync = async (fastify) => {
         const idempotencyKey = fastify.generateIdempotencyKey(
           authUserId,
           cartHash,
+          cart.updatedAt,
         )
+        request.cartHash = cartHash
         request.idempotencyKey = idempotencyKey
 
-        fastify.log.info(`Cart Hash (Verify): ${cartHash}`)
+        fastify.log.info(`Cart Hash: ${cartHash}`)
+        fastify.log.info(`Idempotency Key: ${idempotencyKey}`)
 
         const existingOrder = await fastify.db.query.orders.findFirst({
           where: and(
@@ -50,7 +56,7 @@ const checkoutExistingOrderPlugin: FastifyPluginAsync = async (fastify) => {
           ),
         })
 
-        if (existingOrder) {
+        if (existingOrder && existingOrder.status === "pending") {
           const url = existingOrder?.stripeCheckoutSessionUrl
             ? existingOrder.stripeCheckoutSessionUrl
             : (

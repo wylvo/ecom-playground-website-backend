@@ -5,7 +5,11 @@ import { createHash } from "node:crypto"
 // Extend Fastify types
 declare module "fastify" {
   interface FastifyInstance {
-    generateIdempotencyKey: (authUserId: string, cartHash: string) => string
+    generateIdempotencyKey: (
+      authUserId: string,
+      cartHash: string,
+      cartUpdatedAt: string,
+    ) => string
   }
 }
 
@@ -16,9 +20,9 @@ const checkoutGenerateIdempotencyKeyPlugin: FastifyPluginCallback = (
 ) => {
   fastify.decorate(
     "generateIdempotencyKey",
-    (authUserId: string, cartHash: string): string => {
+    (authUserId: string, cartHash: string, cartUpdatedAt: string): string => {
       return createHash("sha256")
-        .update(`${authUserId}-${cartHash}`)
+        .update(`${authUserId}:${cartHash}:${cartUpdatedAt}`)
         .digest("hex")
     },
   )

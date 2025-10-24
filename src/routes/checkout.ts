@@ -108,6 +108,9 @@ export default async function checkout(fastify: FastifyInstance) {
         // For Stripe and orders
         const customer = request.customer
 
+        // For idempotency key
+        const cart = request.cart
+
         // For subtotal price, shipping total and order products
         const cartItems = request.cartItems
 
@@ -201,14 +204,21 @@ export default async function checkout(fastify: FastifyInstance) {
             ).toFixed(0),
           )
 
-          const cartHash = fastify.generateCartHash(authUserId, cartItems)
-          const idempotencyKey = fastify.generateIdempotencyKey(
-            authUserId,
-            cartHash,
-          )
+          let idempotencyKey = request?.idempotencyKey
+          let cartHash = request?.cartHash
+          if (!idempotencyKey) {
+            if (!cartHash)
+              cartHash = fastify.generateCartHash(authUserId, cartItems)
 
-          fastify.log.info(`Cart Hash: ${cartHash}`)
-          fastify.log.info(`Idempotency Key: ${idempotencyKey}`)
+            idempotencyKey = fastify.generateIdempotencyKey(
+              authUserId,
+              cartHash,
+              cart.updatedAt,
+            )
+
+            fastify.log.info(`Cart Hash (Checkout): ${cartHash}`)
+            fastify.log.info(`Idempotency Key (Checkout): ${idempotencyKey}`)
+          }
 
           // Insert order
           const [order] = await tx
