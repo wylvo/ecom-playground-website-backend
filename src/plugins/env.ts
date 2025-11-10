@@ -29,6 +29,7 @@ declare module "fastify" {
       STRIPE_TEST_WEBHOOK_SECRET: string
       STRIPE_API_VERSION: string
       STRIPE_WEBHOOK_IP_VERIFICATION: boolean
+      STRIPE_WEBHOOK_IP_ALLOW_LIST: string[]
       STRIPE_MAX_PENDING_CHECKOUT_SESSIONS_PER_IP_PER_DAY: number
       RESEND_API_KEY: string
       RESEND_AUDIENCE_ID: string
@@ -70,6 +71,7 @@ const envPlugin: FastifyPluginCallback = (fastify, _options, done) => {
       "STRIPE_TEST_WEBHOOK_SECRET",
       "STRIPE_API_VERSION",
       "STRIPE_WEBHOOK_IP_VERIFICATION",
+      "STRIPE_WEBHOOK_IP_ALLOW_LIST",
       "STRIPE_MAX_PENDING_CHECKOUT_SESSIONS_PER_IP_PER_DAY",
       "RESEND_API_KEY",
       "RESEND_AUDIENCE_ID",
@@ -151,6 +153,11 @@ const envPlugin: FastifyPluginCallback = (fastify, _options, done) => {
       STRIPE_WEBHOOK_IP_VERIFICATION: {
         type: "boolean",
         default: true,
+      },
+      STRIPE_WEBHOOK_IP_ALLOW_LIST: {
+        type: "string",
+        separator: ",",
+        default: "",
       },
       STRIPE_MAX_PENDING_CHECKOUT_SESSIONS_PER_IP_PER_DAY: {
         type: "number",
