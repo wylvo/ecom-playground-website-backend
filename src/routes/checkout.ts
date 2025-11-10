@@ -319,7 +319,7 @@ export default async function checkout(fastify: FastifyInstance) {
             mode: "payment",
             payment_method_types: ["card"],
             client_reference_id: order.id,
-            success_url: `${fastify.env.FRONTEND_ENDPOINT}/checkout/success?orderId=${order.id}`,
+            success_url: `${fastify.env.FRONTEND_ENDPOINT}/thank-you?orderId=${order.id}`,
             cancel_url: `${fastify.env.FRONTEND_ENDPOINT}/checkout/shipping`,
 
             line_items: cartItems.map((item) => ({
