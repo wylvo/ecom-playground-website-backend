@@ -10,7 +10,7 @@ declare module "fastify" {
 }
 
 const stripePlugin: FastifyPluginCallback = (fastify, _options, done) => {
-  const apiVersion = fastify.env.STRIPE_API_VERSION as "2025-09-30.clover"
+  const apiVersion = fastify.env.STRIPE_API_VERSION as "2025-12-15.clover"
 
   if (fastify.env.NODE_ENV === "development") {
     const testSecretKey = fastify.env.STRIPE_TEST_SECRET_KEY
