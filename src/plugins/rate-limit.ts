@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync } from "fastify"
+import { FastifyError, type FastifyPluginAsync } from "fastify"
 import fastifyRateLimit from "@fastify/rate-limit"
 import fastifyPlugin from "fastify-plugin"
 
@@ -18,7 +18,7 @@ const rateLimitPlugin: FastifyPluginAsync = async (fastify) => {
     ban,
   })
 
-  fastify.setErrorHandler(function (error, request, reply) {
+  fastify.setErrorHandler<FastifyError>(function (error, request, reply) {
     if (error.statusCode === 429) {
       reply.code(429)
       error.message = "Too many requests! Please try again later"
